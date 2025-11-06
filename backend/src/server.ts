@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import Fastify from 'fastify';
+import Fastify, { FastifyInstance } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
 import { ZodError } from 'zod';
 import { env } from './config/env';
@@ -7,19 +7,40 @@ import prismaPlugin from './plugins/prisma';
 import registerHealthRoutes from './routes/health';
 import registerAuthRoutes from './routes/auth';
 import registerInventoryRoutes from './routes/inventory';
+import registerPurchasingRoutes from './routes/purchasing';
+import { PrismaClient } from '@prisma/client';
 
-export const buildServer = () => {
+export type BuildServerOptions = {
+  prismaClient?: PrismaClient;
+  logger?: boolean;
+};
+
+const registerPrisma = (fastify: FastifyInstance, prismaClient?: PrismaClient) => {
+  if (prismaClient) {
+    fastify.decorate('prisma', prismaClient);
+    fastify.addHook('onClose', async () => {
+      if (typeof fastify.prisma.$disconnect === 'function') {
+        await fastify.prisma.$disconnect();
+      }
+    });
+    return;
+  }
+
+  fastify.register(prismaPlugin, {
+    logQueries: env.NODE_ENV !== 'production',
+  });
+};
+
+export const buildServer = (options: BuildServerOptions = {}) => {
   const fastify = Fastify({
-    logger: true,
+    logger: options.logger ?? true,
   });
 
   fastify.register(fastifyJwt, {
     secret: env.JWT_SECRET,
   });
 
-  fastify.register(prismaPlugin, {
-    logQueries: env.NODE_ENV !== 'production',
-  });
+  registerPrisma(fastify, options.prismaClient);
 
   fastify.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
@@ -49,6 +70,7 @@ export const buildServer = () => {
   fastify.register(registerHealthRoutes);
   fastify.register(registerAuthRoutes);
   fastify.register(registerInventoryRoutes);
+  fastify.register(registerPurchasingRoutes);
 
   return fastify;
 };
