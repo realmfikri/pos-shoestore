@@ -13,16 +13,24 @@ enum Role {
   EMPLOYEE
 }
 
+enum StockLedgerType {
+  INITIAL_COUNT
+  ADJUSTMENT
+  RECEIPT
+  SALE
+}
+
 model User {
-  id           String         @id @default(uuid())
-  email        String         @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  role         Role           @default(EMPLOYEE)
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          Role           @default(EMPLOYEE)
   refreshTokens RefreshToken[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  stockLedgerEntries StockLedger[] @relation("UserStockLedgerEntries")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model RefreshToken {
@@ -32,4 +40,81 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model Brand {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  searchVector Unsupported("tsvector")? @ignore
+}
+
+model Product {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  category    String?
+  tags        String[]  @default([])
+  brandId     String
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  variants    Variant[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  searchVector Unsupported("tsvector")? @ignore
+
+  @@index([brandId])
+}
+
+model Variant {
+  id          String        @id @default(uuid())
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku         String        @unique
+  size        String?
+  color       String?
+  priceCents  Int?
+  barcode     String?
+  stockLedger StockLedger[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([productId])
+  @@index([sku])
+}
+
+model StockLedger {
+  id             String          @id @default(uuid())
+  variantId      String
+  variant        Variant         @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  recordedById   String?
+  recordedBy     User?           @relation("UserStockLedgerEntries", fields: [recordedById], references: [id], onDelete: SetNull)
+  quantityChange Int
+  type           StockLedgerType
+  reason         String?
+  reference      String?
+  createdAt      DateTime        @default(now())
+
+  @@index([variantId])
+  @@index([recordedById])
+}
+
+view CurrentStock {
+  variantId  String @map("variant_id")
+  productId  String @map("product_id")
+  brandId    String @map("brand_id")
+  onHand     Int    @map("on_hand")
+  sku        String
+  brandName  String @map("brand_name")
+  productName String @map("product_name")
+  category   String?
+  size       String?
+  color      String?
+  tags       String[]
+  priceCents Int?   @map("price_cents")
+
+  @@map("current_stock")
+  @@id([variantId])
 }

@@ -6,6 +6,7 @@ import { env } from './config/env';
 import prismaPlugin from './plugins/prisma';
 import registerHealthRoutes from './routes/health';
 import registerAuthRoutes from './routes/auth';
+import registerInventoryRoutes from './routes/inventory';
 
 export const buildServer = () => {
   const fastify = Fastify({
@@ -47,6 +48,7 @@ export const buildServer = () => {
 
   fastify.register(registerHealthRoutes);
   fastify.register(registerAuthRoutes);
+  fastify.register(registerInventoryRoutes);
 
   return fastify;
 };
