@@ -56,3 +56,7 @@ This service is a Fastify + TypeScript API that provides authentication and heal
 - `GET /healthz` – Returns `{"status":"ok"}` when the service is healthy.
 - `GET /readyz` – Returns `{"status":"ready"}` to indicate readiness.
 - `POST /api/auth/login` – Accepts `{ "email": string, "password": string }` and returns a signed JWT along with user details when credentials are valid.
+- `POST /api/sales` – Validates a cart, records the sale and corresponding stock ledger entries in a transaction, and returns totals with the stored payment breakdown.
+- `GET /api/sales/:id/receipt` – Retrieves a receipt payload containing store settings, sale lines, and aggregated totals.
+- `GET /api/variants/:id` – Looks up a variant by identifier, including brand, product, and on-hand quantity details for quick reference.
+- `GET /api/scan/:barcode` – Fetches the variant payload that matches a scanned barcode, returning price and availability information.

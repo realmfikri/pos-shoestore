@@ -1,4 +1,56 @@
-import { describe, expect, beforeEach, afterEach, it } from 'vitest';
+import { describe, expect, beforeAll, beforeEach, afterEach, it, vi } from 'vitest';
+
+vi.mock('@prisma/client', () => {
+  const Role = { OWNER: 'OWNER', MANAGER: 'MANAGER', EMPLOYEE: 'EMPLOYEE' } as const;
+  const StockLedgerType = {
+    INITIAL_COUNT: 'INITIAL_COUNT',
+    ADJUSTMENT: 'ADJUSTMENT',
+    RECEIPT: 'RECEIPT',
+    SALE: 'SALE',
+  } as const;
+  const PurchaseOrderStatus = {
+    DRAFT: 'DRAFT',
+    PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED',
+    RECEIVED: 'RECEIVED',
+    CANCELLED: 'CANCELLED',
+  } as const;
+
+  const sql = (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values });
+  const join = (
+    values: Array<{ strings: TemplateStringsArray; values: unknown[] }>,
+    separator: { strings: TemplateStringsArray; values: unknown[] },
+  ) => {
+    const text = values
+      .map((value) => value.strings.join(''))
+      .join(separator.strings.join(''));
+    const joinedValues = values.flatMap((value) => value.values);
+    return { strings: [text] as unknown as TemplateStringsArray, values: joinedValues };
+  };
+
+  class PrismaClient {}
+
+  class PrismaClientKnownRequestError extends Error {
+    code: string;
+
+    constructor(message: string, code: string) {
+      super(message);
+      this.code = code;
+    }
+  }
+
+  return {
+    Role,
+    StockLedgerType,
+    PurchaseOrderStatus,
+    PrismaClient,
+    Prisma: {
+      sql,
+      join,
+      PrismaClientKnownRequestError,
+    },
+  };
+});
+
 import { randomUUID } from 'crypto';
 import {
   GoodsReceipt,
@@ -13,7 +65,15 @@ import {
   Variant,
   PrismaClient,
 } from '@prisma/client';
-import { buildServer } from '../server';
+
+let buildServer: typeof import('../server').buildServer;
+
+beforeAll(async () => {
+  process.env.NODE_ENV = 'test';
+  process.env.JWT_SECRET = 'test-secret-jwt-value-should-be-long-123456';
+  process.env.DATABASE_URL = 'postgres://localhost/test';
+  ({ buildServer } = await import('../server'));
+});
 
 class FakePrismaClient {
   suppliers = new Map<string, Supplier>();
@@ -323,16 +383,18 @@ class FakePrismaClient {
 }
 
 describe('purchase order receiving flow', () => {
+  const VARIANT_ID = '123e4567-e89b-12d3-a456-426614174000';
   let prisma: FakePrismaClient;
   let server: ReturnType<typeof buildServer>;
   let token: string;
 
-  beforeEach(() => {
-    process.env.JWT_SECRET = 'test-secret';
+  beforeEach(async () => {
+    process.env.JWT_SECRET = 'test-secret-jwt-value-should-be-long-123456';
+    process.env.DATABASE_URL = 'postgres://localhost/test';
     prisma = new FakePrismaClient();
     const now = new Date();
     prisma.seedVariant({
-      id: 'variant-1',
+      id: VARIANT_ID,
       productId: 'product-1',
       sku: 'SKU-123',
       size: null,
@@ -344,6 +406,7 @@ describe('purchase order receiving flow', () => {
       updatedAt: now,
     });
     server = buildServer({ prismaClient: prisma as unknown as PrismaClient, logger: false });
+    await server.ready();
     token = server.jwt.sign({ sub: 'owner-1', role: Role.OWNER });
   });
 
@@ -373,7 +436,7 @@ describe('purchase order receiving flow', () => {
         supplierId: supplier.id,
         items: [
           {
-            variantId: 'variant-1',
+            variantId: VARIANT_ID,
             quantityOrdered: 5,
             costCents: 600,
           },
@@ -419,14 +482,14 @@ describe('purchase order receiving flow', () => {
     expect(receivedOrder.receipts[0].items[0].quantityReceived).toBe(5);
     expect(receivedOrder.receipts[0].items[0].costCents).toBe(650);
 
-    expect(prisma.getOnHand('variant-1')).toBe(5);
+    expect(prisma.getOnHand(VARIANT_ID)).toBe(5);
 
-    const ledgerEntries = await prisma.stockLedger.findMany({ where: { variantId: 'variant-1' } });
+    const ledgerEntries = await prisma.stockLedger.findMany({ where: { variantId: VARIANT_ID } });
     expect(ledgerEntries).toHaveLength(1);
     expect(ledgerEntries[0].reason).toBe('purchase');
     expect(ledgerEntries[0].reference).toBe(receivedOrder.receipts[0].id);
 
-    const variant = await prisma.variant.findUnique({ where: { id: 'variant-1' } });
+    const variant = await prisma.variant.findUnique({ where: { id: VARIANT_ID } });
     expect(variant?.costPriceCents).toBe(650);
   });
 });

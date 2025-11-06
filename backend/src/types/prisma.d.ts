@@ -79,6 +79,29 @@ declare module '@prisma/client' {
     createdAt: Date;
   };
 
+  export type Sale = {
+    id: string;
+    recordedById: string | null;
+    subtotalCents: number;
+    saleDiscountCents: number;
+    discountTotalCents: number;
+    taxTotalCents: number;
+    totalCents: number;
+    paymentBreakdown: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+
+  export type SaleItem = {
+    id: string;
+    saleId: string;
+    variantId: string;
+    quantity: number;
+    unitPriceCents: number;
+    discountCents: number;
+    createdAt: Date;
+  };
+
   export type Supplier = {
     id: string;
     name: string;
@@ -206,6 +229,34 @@ declare module '@prisma/client' {
     stockLedger: {
       create(args: { data: Partial<StockLedger> & { variantId: string; quantityChange: number; type: StockLedgerType } }): Promise<StockLedger>;
       findMany(args?: { where?: { variantId?: string } }): Promise<StockLedger[]>;
+    };
+
+    sale: {
+      create(args: {
+        data: Partial<Sale> & {
+          subtotalCents: number;
+          saleDiscountCents: number;
+          discountTotalCents: number;
+          taxTotalCents: number;
+          totalCents: number;
+          paymentBreakdown: unknown;
+          recordedById?: string | null;
+        };
+      }): Promise<Sale>;
+      findUnique(args: { where: { id: string } }): Promise<Sale | null>;
+    };
+
+    saleItem: {
+      create(args: {
+        data: Partial<SaleItem> & {
+          saleId: string;
+          variantId: string;
+          quantity: number;
+          unitPriceCents: number;
+          discountCents: number;
+        };
+      }): Promise<SaleItem>;
+      findMany(args: { where: { saleId?: string } }): Promise<SaleItem[]>;
     };
 
     $queryRaw<T = unknown>(

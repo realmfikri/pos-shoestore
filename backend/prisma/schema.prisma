@@ -36,6 +36,7 @@ model User {
   role          Role           @default(EMPLOYEE)
   refreshTokens RefreshToken[]
   stockLedgerEntries StockLedger[] @relation("UserStockLedgerEntries")
+  sales         Sale[]         @relation("SalesRecordedByUser")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -108,6 +109,38 @@ model StockLedger {
 
   @@index([variantId])
   @@index([recordedById])
+}
+
+model Sale {
+  id                  String    @id @default(uuid())
+  recordedById        String?
+  recordedBy          User?     @relation("SalesRecordedByUser", fields: [recordedById], references: [id], onDelete: SetNull)
+  subtotalCents       Int
+  saleDiscountCents   Int        @default(0)
+  discountTotalCents  Int        @default(0)
+  taxTotalCents       Int        @default(0)
+  totalCents          Int
+  paymentBreakdown    Json
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  items               SaleItem[]
+
+  @@index([recordedById])
+}
+
+model SaleItem {
+  id              String   @id @default(uuid())
+  saleId          String
+  sale            Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variantId       String
+  variant         Variant  @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  quantity        Int
+  unitPriceCents  Int
+  discountCents   Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([saleId])
+  @@index([variantId])
 }
 
 model Supplier {
