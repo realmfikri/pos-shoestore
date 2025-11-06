@@ -20,6 +20,13 @@ enum StockLedgerType {
   SALE
 }
 
+enum PurchaseOrderStatus {
+  DRAFT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -76,8 +83,10 @@ model Variant {
   size        String?
   color       String?
   priceCents  Int?
+  costPriceCents Int?
   barcode     String?
   stockLedger StockLedger[]
+  purchaseOrderItems PurchaseOrderItem[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -99,6 +108,81 @@ model StockLedger {
 
   @@index([variantId])
   @@index([recordedById])
+}
+
+model Supplier {
+  id        String           @id @default(uuid())
+  name      String
+  contact   String?
+  email     String?
+  phone     String?
+  address   String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id           String               @id @default(uuid())
+  supplierId   String
+  supplier     Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  createdById  String
+  createdBy    User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  status       PurchaseOrderStatus  @default(DRAFT)
+  orderedAt    DateTime?            
+  receivedAt   DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  items        PurchaseOrderItem[]
+  receipts     GoodsReceipt[]
+
+  @@index([supplierId])
+  @@index([createdById])
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  variantId       String
+  variant         Variant       @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  quantityOrdered Int
+  quantityReceived Int          @default(0)
+  costCents       Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  receiptItems    GoodsReceiptItem[]
+
+  @@index([purchaseOrderId])
+  @@index([variantId])
+}
+
+model GoodsReceipt {
+  id              String            @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receivedById    String?
+  receivedBy      User?             @relation(fields: [receivedById], references: [id], onDelete: SetNull)
+  receivedAt      DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+  items           GoodsReceiptItem[]
+
+  @@index([purchaseOrderId])
+  @@index([receivedById])
+}
+
+model GoodsReceiptItem {
+  id              String        @id @default(uuid())
+  goodsReceiptId  String
+  goodsReceipt    GoodsReceipt  @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItemId String
+  purchaseOrderItem PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Cascade)
+  quantityReceived Int
+  costCents        Int?
+  createdAt        DateTime      @default(now())
+
+  @@index([goodsReceiptId])
+  @@index([purchaseOrderItemId])
 }
 
 view CurrentStock {
