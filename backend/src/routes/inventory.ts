@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance } from 'fastify';
-import { InventoryImportStatus, Prisma, Role } from '@prisma/client';
+import { InventoryImportStatus, Prisma, Role, StockLedgerType, Media } from '@prisma/client';
 import { z } from 'zod';
 import { requireRoles, AuthenticatedRequest } from '../middleware/authGuard';
 import {
@@ -11,6 +11,10 @@ import {
   InventoryQuerySchema,
   InventoryItemSchema,
   InventoryQuery,
+  InventoryDetailParamsSchema,
+  StockLedgerQuerySchema,
+  CreateStockAdjustmentBodySchema,
+  StockLedgerTypeValues,
 } from '../types/inventoryContracts';
 import {
   InventoryImportApplyResponseSchema,
@@ -29,8 +33,12 @@ import {
   failInventoryImportBatch,
   completeInventoryImportBatch,
 } from '../services/inventoryImport';
+import { MediaStatus } from '../types/mediaStatus';
+import { env } from '../config/env';
 
 const STOCK_WRITE_ROLES: Role[] = [Role.OWNER, Role.MANAGER, Role.EMPLOYEE];
+
+const MEDIA_VIEWABLE_STATUSES = new Set([MediaStatus.READY, MediaStatus.OPTIMIZED]);
 
 const BrandListQuerySchema = z
   .object({
@@ -107,6 +115,78 @@ const buildInventoryFilters = (parsedQuery: InventoryQuery): Prisma.Sql[] => {
 
 const buildWhereClause = (filters: Prisma.Sql[]) =>
   filters.length > 0 ? Prisma.sql`WHERE ${Prisma.join(filters, Prisma.sql` AND `)}` : Prisma.sql``;
+
+const createMediaPreview = async (fastify: FastifyInstance, media: Media) => {
+  if (!MEDIA_VIEWABLE_STATUSES.has(media.status)) {
+    return null;
+  }
+
+  const objectKey = media.optimizedKey ?? media.key;
+
+  try {
+    const url = await fastify.minio.presignedGetObject(
+      media.bucket,
+      objectKey,
+      env.MEDIA_SIGNED_URL_EXPIRY_SECONDS,
+    );
+
+    return {
+      id: media.id,
+      fileName: media.fileName,
+      url,
+      variantId: media.variantId,
+      productId: media.productId,
+      createdAt: media.createdAt.toISOString(),
+    };
+  } catch (error) {
+    fastify.log.warn({ err: error, mediaId: media.id }, 'Failed to generate media preview URL');
+    return {
+      id: media.id,
+      fileName: media.fileName,
+      url: null,
+      variantId: media.variantId,
+      productId: media.productId,
+      createdAt: media.createdAt.toISOString(),
+    };
+  }
+};
+
+const loadOnHandForVariants = async (fastify: FastifyInstance, variantIds: string[]) => {
+  if (variantIds.length === 0) {
+    return new Map<string, number>();
+  }
+
+  const rows = await fastify.prisma.$queryRaw<
+    Array<{ variant_id: string; on_hand: bigint | number | null }>
+  >(
+    Prisma.sql`
+      SELECT variant_id, on_hand
+      FROM "current_stock"
+      WHERE variant_id IN (${Prisma.join(variantIds.map((id) => Prisma.sql`${id}`))})
+    `,
+  );
+
+  return new Map(rows.map((row) => [row.variant_id, Number(row.on_hand ?? 0)]));
+};
+
+const fetchCurrentOnHand = async (fastify: FastifyInstance, variantId: string) => {
+  const rows = await fastify.prisma.$queryRaw<
+    Array<{ on_hand: bigint | number | null }>
+  >(
+    Prisma.sql`
+      SELECT on_hand
+      FROM "current_stock"
+      WHERE variant_id = ${variantId}
+      LIMIT 1
+    `,
+  );
+
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  return Number(rows[0].on_hand ?? 0);
+};
 
 const csvEscape = (value: string) =>
   /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
@@ -725,6 +805,209 @@ const registerInventoryRoutes = async (fastify: FastifyInstance): Promise<void> 
           pageCount,
         },
       };
+    },
+  );
+
+  fastify.get(
+    '/api/inventory/:id',
+    { preHandler: requireRoles(STOCK_WRITE_ROLES) },
+    async (request, reply) => {
+      const params = InventoryDetailParamsSchema.parse(request.params);
+
+      const variant = await fastify.prisma.variant.findUnique({
+        where: { id: params.id },
+        include: {
+          product: {
+            include: {
+              brand: true,
+              media: true,
+              variants: {
+                include: { media: true },
+                orderBy: { createdAt: 'asc' },
+              },
+            },
+          },
+          media: true,
+        },
+      });
+
+      if (!variant) {
+        reply.code(404).send({ message: 'Variant not found' });
+        return;
+      }
+
+      const product = variant.product;
+      const relatedVariants = product.variants;
+      const onHandMap = await loadOnHandForVariants(
+        fastify,
+        relatedVariants.map((entry) => entry.id),
+      );
+
+      const variants = relatedVariants.map((entry) => ({
+        id: entry.id,
+        sku: entry.sku,
+        size: entry.size,
+        color: entry.color,
+        priceCents: entry.priceCents ?? null,
+        costPriceCents: entry.costPriceCents ?? null,
+        onHand: onHandMap.get(entry.id) ?? 0,
+        isPrimary: entry.id === variant.id,
+        createdAt: entry.createdAt.toISOString(),
+        updatedAt: entry.updatedAt.toISOString(),
+      }));
+
+      const mediaMap = new Map<string, Media>();
+      for (const media of [...product.media, ...variant.media, ...relatedVariants.flatMap((entry) => entry.media)]) {
+        if (!mediaMap.has(media.id)) {
+          mediaMap.set(media.id, media);
+        }
+      }
+
+      const mediaPreviews = (
+        await Promise.all(
+          Array.from(mediaMap.values()).map((media) => createMediaPreview(fastify, media)),
+        )
+      ).filter((preview): preview is NonNullable<Awaited<ReturnType<typeof createMediaPreview>>> => Boolean(preview));
+
+      reply.send({
+        product: {
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          category: product.category,
+          tags: product.tags,
+          brand: {
+            id: product.brand.id,
+            name: product.brand.name,
+          },
+        },
+        primaryVariantId: variant.id,
+        variants,
+        media: mediaPreviews,
+      });
+    },
+  );
+
+  fastify.get(
+    '/api/variants/:id/ledger',
+    { preHandler: requireRoles(STOCK_WRITE_ROLES) },
+    async (request, reply) => {
+      const params = InventoryDetailParamsSchema.parse(request.params);
+      const query = StockLedgerQuerySchema.parse(request.query ?? {});
+      const where: Prisma.StockLedgerWhereInput = {
+        variantId: params.id,
+        ...(query.type ? { type: query.type as StockLedgerType } : {}),
+        ...(query.reason ? { reason: query.reason } : {}),
+        ...(query.from || query.to
+          ? {
+              createdAt: {
+                ...(query.from ? { gte: new Date(query.from) } : {}),
+                ...(query.to ? { lte: new Date(query.to) } : {}),
+              },
+            }
+          : {}),
+      };
+
+      const limit = query.limit ?? 50;
+
+      const [entries, reasons, onHand] = await Promise.all([
+        fastify.prisma.stockLedger.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          include: { recordedBy: true },
+        }),
+        fastify.prisma.stockLedger.findMany({
+          where: { variantId: params.id, reason: { not: null } },
+          select: { reason: true },
+          distinct: ['reason'],
+        }),
+        fetchCurrentOnHand(fastify, params.id),
+      ]);
+
+      reply.send({
+        variantId: params.id,
+        onHand,
+        entries: entries.map((entry) => ({
+          id: entry.id,
+          type: entry.type,
+          reason: entry.reason,
+          reference: entry.reference,
+          quantityChange: entry.quantityChange,
+          recordedAt: entry.createdAt.toISOString(),
+          recordedBy: entry.recordedBy
+            ? {
+                id: entry.recordedBy.id,
+                firstName: entry.recordedBy.firstName,
+                lastName: entry.recordedBy.lastName,
+              }
+            : null,
+        })),
+        availableTypes: StockLedgerTypeValues,
+        availableReasons: reasons
+          .map((row) => row.reason)
+          .filter((reason): reason is string => Boolean(reason)),
+      });
+    },
+  );
+
+  fastify.post(
+    '/api/variants/:id/adjustments',
+    { preHandler: requireRoles(STOCK_WRITE_ROLES) },
+    async (request, reply) => {
+      const params = InventoryDetailParamsSchema.parse(request.params);
+      const body = CreateStockAdjustmentBodySchema.parse(request.body);
+      const user = (request as AuthenticatedRequest).user;
+
+      const variant = await fastify.prisma.variant.findUnique({
+        where: { id: params.id },
+        select: { id: true },
+      });
+
+      if (!variant) {
+        reply.code(404).send({ message: 'Variant not found' });
+        return;
+      }
+
+      const currentOnHand = await fetchCurrentOnHand(fastify, params.id);
+      const quantityChange = -body.quantity;
+
+      if (currentOnHand + quantityChange < 0) {
+        throw fastify.httpErrors.badRequest('Adjustment would reduce stock below zero');
+      }
+
+      const entry = await fastify.prisma.stockLedger.create({
+        data: {
+          id: randomUUID(),
+          variantId: params.id,
+          recordedById: user.sub,
+          quantityChange,
+          type: StockLedgerType.ADJUSTMENT,
+          reason: body.reasonCode,
+          reference: body.note ?? null,
+        },
+        include: { recordedBy: true },
+      });
+
+      const nextOnHand = currentOnHand + quantityChange;
+
+      reply.code(201).send({
+        id: entry.id,
+        variantId: entry.variantId,
+        quantityChange: entry.quantityChange,
+        type: entry.type,
+        reason: entry.reason,
+        reference: entry.reference,
+        recordedAt: entry.createdAt.toISOString(),
+        recordedBy: entry.recordedBy
+          ? {
+              id: entry.recordedBy.id,
+              firstName: entry.recordedBy.firstName,
+              lastName: entry.recordedBy.lastName,
+            }
+          : null,
+        onHand: nextOnHand,
+      });
     },
   );
 

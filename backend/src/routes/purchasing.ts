@@ -7,6 +7,9 @@ import {
   PurchaseOrder,
   PurchaseOrderItem,
   GoodsReceipt,
+  GoodsReceiptItem,
+  Supplier,
+  User,
 } from '@prisma/client';
 import { requireRoles, AuthenticatedRequest } from '../middleware/authGuard';
 import {
@@ -16,48 +19,174 @@ import {
   CreatePurchaseOrderBodySchema,
   PurchaseOrderParamsSchema,
   ReceivePurchaseOrderBodySchema,
+  PurchaseOrderListQuerySchema,
 } from '../types/purchasingContracts';
 
 const OWNER_ONLY = [Role.OWNER];
 
+type VariantSummary = {
+  id: string;
+  sku: string;
+  size: string | null;
+  color: string | null;
+  productId: string;
+  productName: string;
+  brandName: string;
+};
+
+const toSupplierSummary = (supplier: Supplier) => ({
+  id: supplier.id,
+  name: supplier.name,
+  contact: supplier.contact,
+  email: supplier.email,
+  phone: supplier.phone,
+  address: supplier.address,
+  createdAt: supplier.createdAt.toISOString(),
+  updatedAt: supplier.updatedAt.toISOString(),
+});
+
+const toPurchaseOrderItemSummary = (item: PurchaseOrderItem, variant: VariantSummary) => ({
+  id: item.id,
+  variant,
+  quantityOrdered: item.quantityOrdered,
+  quantityReceived: item.quantityReceived,
+  costCents: item.costCents,
+  createdAt: item.createdAt.toISOString(),
+  updatedAt: item.updatedAt.toISOString(),
+});
+
+const toGoodsReceiptSummary = (
+  receipt: GoodsReceipt & { items: GoodsReceiptItem[]; receivedBy: User | null },
+  itemVariantMap: Map<string, VariantSummary>,
+) => ({
+  id: receipt.id,
+  purchaseOrderId: receipt.purchaseOrderId,
+  receivedAt: receipt.receivedAt.toISOString(),
+  createdAt: receipt.createdAt.toISOString(),
+  receivedBy: receipt.receivedBy
+    ? {
+        id: receipt.receivedBy.id,
+        firstName: receipt.receivedBy.firstName,
+        lastName: receipt.receivedBy.lastName,
+      }
+    : null,
+  items: receipt.items.map((item) => ({
+    id: item.id,
+    quantityReceived: item.quantityReceived,
+    costCents: item.costCents,
+    purchaseOrderItemId: item.purchaseOrderItemId,
+    variant:
+      itemVariantMap.get(item.purchaseOrderItemId) ??
+      ({
+        id: item.purchaseOrderItemId,
+        sku: item.purchaseOrderItemId,
+        size: null,
+        color: null,
+        productId: item.purchaseOrderItemId,
+        productName: 'Unknown product',
+        brandName: 'Unknown brand',
+      } satisfies VariantSummary),
+    createdAt: item.createdAt.toISOString(),
+  })),
+});
+
 const buildPurchaseOrderResponse = async (fastify: FastifyInstance, order: PurchaseOrder) => {
-  const [supplier, items, receipts] = await Promise.all([
+  const [supplier, items, receiptsRaw] = await Promise.all([
     fastify.prisma.supplier.findUnique({ where: { id: order.supplierId } }),
-    fastify.prisma.purchaseOrderItem.findMany({ where: { purchaseOrderId: order.id } }),
-    fastify.prisma.goodsReceipt.findMany({ where: { purchaseOrderId: order.id } }),
+    fastify.prisma.purchaseOrderItem.findMany({
+      where: { purchaseOrderId: order.id },
+      orderBy: { createdAt: 'asc' },
+    }),
+    fastify.prisma.goodsReceipt.findMany({
+      where: { purchaseOrderId: order.id },
+      orderBy: { receivedAt: 'desc' },
+      include: {
+        items: true,
+        receivedBy: true,
+      },
+    }),
   ]);
 
   if (!supplier) {
     return null;
   }
 
-  if (receipts.length === 0) {
-    return {
-      ...order,
-      supplier,
-      items,
-      receipts: [],
-    };
-  }
+  const receipts = await Promise.all(
+    receiptsRaw.map(async (receipt) => {
+      const receiptItems = Array.isArray((receipt as { items?: GoodsReceiptItem[] }).items)
+        ? (receipt as { items: GoodsReceiptItem[] }).items
+        : await fastify.prisma.goodsReceiptItem.findMany({
+            where: { goodsReceiptId: receipt.id },
+          });
 
-  const receiptsWithItems = await Promise.all(
-    receipts.map(async (receipt) => {
-      const receiptItems = await fastify.prisma.goodsReceiptItem.findMany({
-        where: { goodsReceiptId: receipt.id },
-      });
+      const receivedBy = (receipt as { receivedBy?: User | null }).receivedBy ?? null;
 
       return {
         ...receipt,
         items: receiptItems,
+        receivedBy,
       };
     }),
   );
 
+  const variantSummaries = new Map<string, VariantSummary>();
+  const uniqueVariantIds = Array.from(new Set(items.map((item) => item.variantId)));
+
+  await Promise.all(
+    uniqueVariantIds.map(async (variantId) => {
+      const variant = await fastify.prisma.variant.findUnique({
+        where: { id: variantId },
+        include: {
+          product: {
+            include: { brand: true },
+          },
+        },
+      });
+
+      if (!variant) {
+        return;
+      }
+
+      variantSummaries.set(variantId, {
+        id: variant.id,
+        sku: variant.sku,
+        size: variant.size,
+        color: variant.color,
+        productId: variant.productId,
+        productName: variant.product?.name ?? 'Unknown product',
+        brandName: variant.product?.brand?.name ?? 'Unknown brand',
+      });
+    }),
+  );
+
+  const itemVariantMap = new Map<string, VariantSummary>();
+  for (const item of items) {
+    const variantSummary =
+      variantSummaries.get(item.variantId) ??
+      ({
+        id: item.variantId,
+        sku: item.variantId,
+        size: null,
+        color: null,
+        productId: item.variantId,
+        productName: 'Unknown product',
+        brandName: 'Unknown brand',
+      } satisfies VariantSummary);
+    itemVariantMap.set(item.id, variantSummary);
+  }
+
   return {
-    ...order,
-    supplier,
-    items,
-    receipts: receiptsWithItems,
+    id: order.id,
+    supplier: toSupplierSummary(supplier),
+    supplierId: order.supplierId,
+    status: order.status,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    orderedAt: order.orderedAt ? order.orderedAt.toISOString() : null,
+    receivedAt: order.receivedAt ? order.receivedAt.toISOString() : null,
+    createdById: order.createdById,
+    items: items.map((item) => toPurchaseOrderItemSummary(item, itemVariantMap.get(item.id)!)),
+    receipts: receipts.map((receipt) => toGoodsReceiptSummary(receipt, itemVariantMap)),
   };
 };
 
@@ -214,8 +343,17 @@ const registerPurchasingRoutes = async (fastify: FastifyInstance): Promise<void>
   fastify.get(
     '/api/po',
     { preHandler: requireRoles(OWNER_ONLY) },
-    async (_request, reply) => {
-      const orders = await fastify.prisma.purchaseOrder.findMany();
+    async (request, reply) => {
+      const query = PurchaseOrderListQuerySchema.parse(request.query ?? {});
+      const where = {
+        ...(query.supplierId ? { supplierId: query.supplierId } : {}),
+        ...(query.status ? { status: query.status } : {}),
+      };
+
+      const orders = await fastify.prisma.purchaseOrder.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+      });
       const responses = await Promise.all(
         orders.map(async (order) => buildPurchaseOrderResponse(fastify, order)),
       );

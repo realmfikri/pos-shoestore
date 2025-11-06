@@ -8,6 +8,11 @@ import { InventoryDetail } from './InventoryDetail'
 import { InventoryQuickAdd } from './InventoryQuickAdd'
 import { ReceiveShipment } from './ReceiveShipment'
 import { ReportsOverview } from './ReportsOverview'
+import { PurchaseOrdersList } from './PurchaseOrdersList'
+import { PurchaseOrderCreate } from './PurchaseOrderCreate'
+import { PurchaseOrderDetail } from './PurchaseOrderDetail'
+import { SuppliersIndex } from './SuppliersIndex'
+import { SupplierDetail } from './SupplierDetail'
 
 export const router = createBrowserRouter([
   {
@@ -45,9 +50,34 @@ export const router = createBrowserRouter([
             handle: { breadcrumb: 'Inventory detail' },
           },
           {
+            path: '/purchase-orders',
+            element: <PurchaseOrdersList />,
+            handle: { breadcrumb: 'Purchase orders' },
+          },
+          {
+            path: '/purchase-orders/new',
+            element: <PurchaseOrderCreate />,
+            handle: { breadcrumb: 'New purchase order' },
+          },
+          {
+            path: '/purchase-orders/:id',
+            element: <PurchaseOrderDetail />,
+            handle: { breadcrumb: 'Purchase order detail' },
+          },
+          {
             path: '/receive',
             element: <ReceiveShipment />,
             handle: { breadcrumb: 'Receive' },
+          },
+          {
+            path: '/suppliers',
+            element: <SuppliersIndex />,
+            handle: { breadcrumb: 'Suppliers' },
+          },
+          {
+            path: '/suppliers/:id',
+            element: <SupplierDetail />,
+            handle: { breadcrumb: 'Supplier detail' },
           },
           {
             path: '/reports',

@@ -1,5 +1,15 @@
-import { createClient, RedisClientType } from 'redis';
+import type { RedisClientType } from 'redis';
 import { env } from '../config/env';
+
+let redisCreateClient: typeof import('redis')['createClient'] | null = null;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+  const redis = require('redis') as typeof import('redis');
+  redisCreateClient = redis.createClient;
+} catch {
+  redisCreateClient = null;
+}
 
 export interface ReportCache {
   get<T>(key: string): Promise<T | null>;
@@ -99,8 +109,8 @@ class RedisReportCache implements ReportCache {
 }
 
 export const createReportCache = (): ReportCache => {
-  if (env.REDIS_URL) {
-    const client = createClient({ url: env.REDIS_URL });
+  if (env.REDIS_URL && redisCreateClient) {
+    const client = redisCreateClient({ url: env.REDIS_URL });
     client.on('error', (error) => {
       // eslint-disable-next-line no-console
       console.error('Redis cache error', error);

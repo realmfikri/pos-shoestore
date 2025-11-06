@@ -32,6 +32,15 @@ export const PurchaseOrderParamsSchema = z.object({
   id: z.string().uuid('Purchase order id must be a valid UUID'),
 });
 
+export const PurchaseOrderStatusValues = ['DRAFT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED'] as const;
+
+export const PurchaseOrderListQuerySchema = z
+  .object({
+    supplierId: z.string().uuid('Supplier id must be a valid UUID').optional(),
+    status: z.enum(PurchaseOrderStatusValues).optional(),
+  })
+  .strict();
+
 export const ReceivePurchaseOrderBodySchema = z.object({
   items: z
     .array(

@@ -4,6 +4,10 @@ export const StockLedgerTypeValues = ['INITIAL_COUNT', 'ADJUSTMENT', 'RECEIPT', 
 
 export type StockLedgerType = (typeof StockLedgerTypeValues)[number];
 
+export const InventoryDetailParamsSchema = z.object({
+  id: z.string().uuid('Variant id must be a valid UUID'),
+});
+
 export const CreateBrandBodySchema = z.object({
   name: z.string().trim().min(1, 'Brand name is required'),
   description: z
@@ -143,6 +147,31 @@ export const InventoryResponseSchema = z.object({
 });
 
 export type InventoryResponse = z.infer<typeof InventoryResponseSchema>;
+
+export const StockLedgerQuerySchema = z
+  .object({
+    type: z.enum(StockLedgerTypeValues).optional(),
+    reason: z.string().trim().min(1).optional(),
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
+
+export const CreateStockAdjustmentBodySchema = z
+  .object({
+    reasonCode: z.enum(['damaged', 'lost']),
+    quantity: z
+      .number()
+      .int('Quantity must be an integer')
+      .positive('Quantity must be greater than zero'),
+    note: z
+      .string()
+      .trim()
+      .max(255, 'Note must be 255 characters or fewer')
+      .optional(),
+  })
+  .strict();
 
 export const inventoryOpenApiSpec = {
   openapi: '3.1.0',
