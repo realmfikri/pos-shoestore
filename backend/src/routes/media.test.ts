@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import type { Readable } from 'node:stream';
+import type { Client as MinioClient } from 'minio';
+import type { ImageOptimizationQueue } from '../utils/imageOptimizationQueue';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@prisma/client', () => {
@@ -49,13 +52,13 @@ class FakeMinioClient {
     return true;
   }
   async makeBucket(): Promise<void> {}
-  async getObject(): Promise<NodeJS.ReadableStream> {
+  async getObject(): Promise<Readable> {
     throw new Error('not implemented');
   }
   async removeObject(): Promise<void> {}
 }
 
-class FakeQueue {
+class FakeQueue implements Pick<ImageOptimizationQueue, 'enqueue'> {
   jobs: Array<{ mediaId: string; objectKey: string }> = [];
 
   enqueue(job: { mediaId: string; objectKey: string }): void {
@@ -83,6 +86,25 @@ type MediaRecord = {
   updatedAt: Date;
 };
 
+type MediaCreateInput = {
+  productId?: string | null;
+  variantId?: string | null;
+  bucket: string;
+  key: string;
+  fileName: string;
+  contentType: string;
+  status: (typeof MediaStatus)[keyof typeof MediaStatus];
+  sizeBytes?: number | null;
+  optimizedKey?: string | null;
+  uploadExpiresAt?: Date | null;
+  uploadedAt?: Date | null;
+  optimizedAt?: Date | null;
+  originalDeletedAt?: Date | null;
+  failureReason?: string | null;
+};
+
+type MediaUpdateInput = Partial<Omit<MediaRecord, 'id'>>;
+
 class FakePrismaClient {
   products = new Map<string, { id: string }>();
   variants = new Map<string, { id: string; productId: string }>();
@@ -99,12 +121,18 @@ class FakePrismaClient {
   };
 
   media = {
-    create: async ({ data }: { data: any }) => {
+    create: async ({ data }: { data: MediaCreateInput }) => {
       const id = randomUUID();
       const record: MediaRecord = {
-        ...data,
         id,
+        productId: data.productId ?? null,
+        variantId: data.variantId ?? null,
+        bucket: data.bucket,
+        key: data.key,
+        fileName: data.fileName,
+        contentType: data.contentType,
         sizeBytes: data.sizeBytes ?? null,
+        status: data.status,
         optimizedKey: data.optimizedKey ?? null,
         uploadExpiresAt: data.uploadExpiresAt ?? null,
         uploadedAt: data.uploadedAt ?? null,
@@ -113,7 +141,7 @@ class FakePrismaClient {
         failureReason: data.failureReason ?? null,
         createdAt: new Date(NOW),
         updatedAt: new Date(NOW),
-      } as MediaRecord;
+      };
       this.mediaRecords.set(id, record);
       return { ...record };
     },
@@ -121,7 +149,7 @@ class FakePrismaClient {
       const record = this.mediaRecords.get(where.id);
       return record ? { ...record } : null;
     },
-    update: async ({ where, data }: { where: { id: string }; data: any }) => {
+    update: async ({ where, data }: { where: { id: string }; data: MediaUpdateInput }) => {
       const existing = this.mediaRecords.get(where.id);
       if (!existing) {
         throw new Error('not found');
@@ -182,8 +210,8 @@ describe('media routes', () => {
 
     const server = buildServer({
       prismaClient: prisma as unknown as PrismaClient,
-      minioClient: minio as unknown as any,
-      imageOptimizationQueue: queue as unknown as any,
+      minioClient: minio as unknown as MinioClient,
+      imageOptimizationQueue: queue as unknown as ImageOptimizationQueue,
       logger: false,
       mediaOptimizationEnabled: false,
     });
@@ -222,8 +250,8 @@ describe('media routes', () => {
 
     const server = buildServer({
       prismaClient: prisma as unknown as PrismaClient,
-      minioClient: minio as unknown as any,
-      imageOptimizationQueue: queue as unknown as any,
+      minioClient: minio as unknown as MinioClient,
+      imageOptimizationQueue: queue as unknown as ImageOptimizationQueue,
       logger: false,
       mediaOptimizationEnabled: false,
     });
@@ -268,8 +296,8 @@ describe('media routes', () => {
 
     const server = buildServer({
       prismaClient: prisma as unknown as PrismaClient,
-      minioClient: minio as unknown as any,
-      imageOptimizationQueue: queue as unknown as any,
+      minioClient: minio as unknown as MinioClient,
+      imageOptimizationQueue: queue as unknown as ImageOptimizationQueue,
       logger: false,
       mediaOptimizationEnabled: true,
     });
@@ -315,8 +343,8 @@ describe('media routes', () => {
 
     const server = buildServer({
       prismaClient: prisma as unknown as PrismaClient,
-      minioClient: minio as unknown as any,
-      imageOptimizationQueue: queue as unknown as any,
+      minioClient: minio as unknown as MinioClient,
+      imageOptimizationQueue: queue as unknown as ImageOptimizationQueue,
       logger: false,
       mediaOptimizationEnabled: false,
     });

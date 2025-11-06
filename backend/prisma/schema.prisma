@@ -35,6 +35,13 @@ enum PurchaseOrderStatus {
   CANCELLED
 }
 
+enum InventoryImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
@@ -119,6 +126,35 @@ model StockLedger {
 
   @@index([variantId])
   @@index([recordedById])
+}
+
+model InventoryImportBatch {
+  id               String                 @id @default(uuid())
+  status           InventoryImportStatus  @default(PENDING)
+  uploadedById     String
+  uploadedBy       User                   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  originalFileName String
+  totalRows        Int
+  processedRows    Int                    @default(0)
+  chunkSize        Int                    @default(200)
+  failureReason    String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  logs             InventoryImportAuditLog[]
+
+  @@index([uploadedById])
+}
+
+model InventoryImportAuditLog {
+  id        String                @id @default(uuid())
+  batchId   String
+  batch     InventoryImportBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  level     String
+  message   String
+  metadata  Json?
+  createdAt DateTime              @default(now())
+
+  @@index([batchId])
 }
 
 model Sale {

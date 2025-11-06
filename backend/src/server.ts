@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import Fastify, { FastifyInstance } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
+import fastifyMultipart from '@fastify/multipart';
 import { ZodError } from 'zod';
 import { env } from './config/env';
 import prismaPlugin from './plugins/prisma';
@@ -69,6 +70,13 @@ export const buildServer = (options: BuildServerOptions = {}) => {
 
   fastify.register(fastifyJwt, {
     secret: env.JWT_SECRET,
+  });
+
+  fastify.register(fastifyMultipart, {
+    limits: {
+      fileSize: 5 * 1024 * 1024,
+      files: 1,
+    },
   });
 
   registerPrisma(fastify, options.prismaClient);

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { FastifyInstance } from 'fastify';
 import { Role } from '@prisma/client';
+import type { Media } from '@prisma/client';
 import { requireRoles } from '../middleware/authGuard';
 import { env } from '../config/env';
 import {
@@ -20,7 +21,7 @@ const sanitizeFileName = (fileName: string) =>
     .replace(/[^a-zA-Z0-9_.-]/g, '_')
     .replace(/_+/g, '_');
 
-const toResponse = (media: any): MediaResponse => ({
+const toResponse = (media: Media): MediaResponse => ({
   id: media.id,
   bucket: media.bucket,
   key: media.key,

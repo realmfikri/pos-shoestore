@@ -1,4 +1,6 @@
 import { describe, it, beforeAll, beforeEach, afterEach, expect, vi } from 'vitest';
+import type { Client as MinioClient } from 'minio';
+import type { ImageOptimizationQueue } from '../utils/imageOptimizationQueue';
 
 vi.mock('@prisma/client', () => {
   const Role = { OWNER: 'OWNER', MANAGER: 'MANAGER', EMPLOYEE: 'EMPLOYEE' } as const;
@@ -97,7 +99,10 @@ class FakePrismaClient {
       if (!record) {
         return null;
       }
-      const { productName: _productName, brandName: _brandName, ...variant } = record;
+      const { productName, brandId, brandName, ...variant } = record;
+      void productName;
+      void brandId;
+      void brandName;
       return { ...variant };
     },
   };
@@ -361,7 +366,7 @@ describe('sales routes', () => {
     process.env.MEDIA_OPTIMIZED_PREFIX = 'optimized/';
     prisma = new FakePrismaClient();
     const minio = {};
-    const queue = { enqueue: () => {} };
+    const queue: Pick<ImageOptimizationQueue, 'enqueue'> = { enqueue: () => {} };
     const now = new Date();
     prisma.seedVariant({
       id: VARIANT_ID,
@@ -381,8 +386,8 @@ describe('sales routes', () => {
     prisma.recordStock(VARIANT_ID, 10, StockLedgerType.INITIAL_COUNT);
     server = buildServer({
       prismaClient: prisma as unknown as PrismaClient,
-      minioClient: minio as any,
-      imageOptimizationQueue: queue as any,
+      minioClient: minio as unknown as MinioClient,
+      imageOptimizationQueue: queue as unknown as ImageOptimizationQueue,
       mediaOptimizationEnabled: false,
       logger: false,
     });
