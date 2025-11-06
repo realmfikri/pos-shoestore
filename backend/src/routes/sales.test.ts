@@ -68,6 +68,16 @@ beforeAll(async () => {
   process.env.NODE_ENV = 'test';
   process.env.JWT_SECRET = 'test-secret-jwt-value-should-be-long-123456';
   process.env.DATABASE_URL = 'postgres://localhost/test';
+  process.env.MINIO_ENDPOINT = 'localhost';
+  process.env.MINIO_PORT = '9000';
+  process.env.MINIO_ACCESS_KEY = 'minio';
+  process.env.MINIO_SECRET_KEY = 'miniopass';
+  process.env.MINIO_BUCKET = 'media';
+  process.env.MINIO_USE_SSL = 'false';
+  process.env.MEDIA_SIGNED_URL_EXPIRY_SECONDS = '900';
+  process.env.MEDIA_OPTIMIZATION_ENABLED = 'false';
+  process.env.MEDIA_KEEP_ORIGINAL = 'true';
+  process.env.MEDIA_OPTIMIZED_PREFIX = 'optimized/';
   ({ buildServer } = await import('../server'));
 });
 
@@ -339,7 +349,19 @@ describe('sales routes', () => {
   beforeEach(async () => {
     process.env.JWT_SECRET = 'test-secret-jwt-value-should-be-long-123456';
     process.env.DATABASE_URL = 'postgres://localhost/test';
+    process.env.MINIO_ENDPOINT = 'localhost';
+    process.env.MINIO_PORT = '9000';
+    process.env.MINIO_ACCESS_KEY = 'minio';
+    process.env.MINIO_SECRET_KEY = 'miniopass';
+    process.env.MINIO_BUCKET = 'media';
+    process.env.MINIO_USE_SSL = 'false';
+    process.env.MEDIA_SIGNED_URL_EXPIRY_SECONDS = '900';
+    process.env.MEDIA_OPTIMIZATION_ENABLED = 'false';
+    process.env.MEDIA_KEEP_ORIGINAL = 'true';
+    process.env.MEDIA_OPTIMIZED_PREFIX = 'optimized/';
     prisma = new FakePrismaClient();
+    const minio = {};
+    const queue = { enqueue: () => {} };
     const now = new Date();
     prisma.seedVariant({
       id: VARIANT_ID,
@@ -357,7 +379,13 @@ describe('sales routes', () => {
       brandName: 'ShoeBrand',
     });
     prisma.recordStock(VARIANT_ID, 10, StockLedgerType.INITIAL_COUNT);
-    server = buildServer({ prismaClient: prisma as unknown as PrismaClient, logger: false });
+    server = buildServer({
+      prismaClient: prisma as unknown as PrismaClient,
+      minioClient: minio as any,
+      imageOptimizationQueue: queue as any,
+      mediaOptimizationEnabled: false,
+      logger: false,
+    });
     await server.ready();
     token = server.jwt.sign({ sub: 'employee-1', role: Role.MANAGER });
   });

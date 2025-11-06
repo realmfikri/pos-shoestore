@@ -13,6 +13,14 @@ enum Role {
   EMPLOYEE
 }
 
+enum MediaStatus {
+  PENDING_UPLOAD
+  READY
+  PROCESSING
+  OPTIMIZED
+  FAILED
+}
+
 enum StockLedgerType {
   INITIAL_COUNT
   ADJUSTMENT
@@ -69,6 +77,7 @@ model Product {
   brandId     String
   brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
   variants    Variant[]
+  media       Media[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   searchVector Unsupported("tsvector")? @ignore
@@ -88,6 +97,7 @@ model Variant {
   barcode     String?
   stockLedger StockLedger[]
   purchaseOrderItems PurchaseOrderItem[]
+  media       Media[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -216,6 +226,31 @@ model GoodsReceiptItem {
 
   @@index([goodsReceiptId])
   @@index([purchaseOrderItemId])
+}
+
+model Media {
+  id             String      @id @default(uuid())
+  productId      String?
+  product        Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId      String?
+  variant        Variant?    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  bucket         String
+  key            String
+  fileName       String
+  contentType    String
+  sizeBytes      Int?
+  status         MediaStatus @default(PENDING_UPLOAD)
+  optimizedKey   String?
+  uploadExpiresAt DateTime?
+  uploadedAt     DateTime?
+  optimizedAt    DateTime?
+  originalDeletedAt DateTime?
+  failureReason  String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([productId])
+  @@index([variantId])
 }
 
 view CurrentStock {
