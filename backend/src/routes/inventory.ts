@@ -10,6 +10,11 @@ import {
   InventoryQuerySchema,
   InventoryItemSchema,
 } from '../types/inventoryContracts';
+import {
+  BarcodeLookupParamsSchema,
+  VariantLookupParamsSchema,
+  VariantLookupResponseSchema,
+} from '../types/salesContracts';
 
 const STOCK_WRITE_ROLES: Role[] = [Role.OWNER, Role.MANAGER, Role.EMPLOYEE];
 
@@ -355,6 +360,122 @@ const registerInventoryRoutes = async (fastify: FastifyInstance): Promise<void> 
           pageCount,
         },
       };
+    },
+  );
+
+  fastify.get(
+    '/api/variants/:id',
+    { preHandler: requireRoles(STOCK_WRITE_ROLES) },
+    async (request, reply) => {
+      const params = VariantLookupParamsSchema.parse(request.params);
+
+      const rows = await fastify.prisma.$queryRaw<
+        Array<{
+          variantId: string;
+          productId: string;
+          brandId: string;
+          sku: string;
+          barcode: string | null;
+          priceCents: number | null;
+          productName: string;
+          brandName: string;
+          size: string | null;
+          color: string | null;
+          onHand: bigint | number | null;
+        }>
+      >(
+        Prisma.sql`
+          SELECT
+            v."id" AS "variantId",
+            v."productId",
+            p."brandId",
+            v."sku",
+            v."barcode",
+            v."priceCents",
+            p."name" AS "productName",
+            b."name" AS "brandName",
+            v."size",
+            v."color",
+            COALESCE(cs."on_hand", 0) AS "onHand"
+          FROM "Variant" v
+          JOIN "Product" p ON p."id" = v."productId"
+          JOIN "Brand" b ON b."id" = p."brandId"
+          LEFT JOIN "current_stock" cs ON cs."variant_id" = v."id"
+          WHERE v."id" = ${params.id}
+          LIMIT 1
+        `,
+      );
+
+      if (rows.length === 0) {
+        reply.code(404).send({ message: 'Variant not found' });
+        return;
+      }
+
+      const row = rows[0];
+      const payload = VariantLookupResponseSchema.parse({
+        ...row,
+        onHand: Number(row.onHand ?? 0),
+      });
+
+      reply.send(payload);
+    },
+  );
+
+  fastify.get(
+    '/api/scan/:barcode',
+    { preHandler: requireRoles(STOCK_WRITE_ROLES) },
+    async (request, reply) => {
+      const params = BarcodeLookupParamsSchema.parse(request.params);
+
+      const rows = await fastify.prisma.$queryRaw<
+        Array<{
+          variantId: string;
+          productId: string;
+          brandId: string;
+          sku: string;
+          barcode: string | null;
+          priceCents: number | null;
+          productName: string;
+          brandName: string;
+          size: string | null;
+          color: string | null;
+          onHand: bigint | number | null;
+        }>
+      >(
+        Prisma.sql`
+          SELECT
+            v."id" AS "variantId",
+            v."productId",
+            p."brandId",
+            v."sku",
+            v."barcode",
+            v."priceCents",
+            p."name" AS "productName",
+            b."name" AS "brandName",
+            v."size",
+            v."color",
+            COALESCE(cs."on_hand", 0) AS "onHand"
+          FROM "Variant" v
+          JOIN "Product" p ON p."id" = v."productId"
+          JOIN "Brand" b ON b."id" = p."brandId"
+          LEFT JOIN "current_stock" cs ON cs."variant_id" = v."id"
+          WHERE v."barcode" = ${params.barcode}
+          LIMIT 1
+        `,
+      );
+
+      if (rows.length === 0) {
+        reply.code(404).send({ message: 'Variant not found' });
+        return;
+      }
+
+      const row = rows[0];
+      const payload = VariantLookupResponseSchema.parse({
+        ...row,
+        onHand: Number(row.onHand ?? 0),
+      });
+
+      reply.send(payload);
     },
   );
 };

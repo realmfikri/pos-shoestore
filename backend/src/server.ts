@@ -8,6 +8,7 @@ import registerHealthRoutes from './routes/health';
 import registerAuthRoutes from './routes/auth';
 import registerInventoryRoutes from './routes/inventory';
 import registerPurchasingRoutes from './routes/purchasing';
+import registerSalesRoutes from './routes/sales';
 import { PrismaClient } from '@prisma/client';
 
 export type BuildServerOptions = {
@@ -71,6 +72,7 @@ export const buildServer = (options: BuildServerOptions = {}) => {
   fastify.register(registerAuthRoutes);
   fastify.register(registerInventoryRoutes);
   fastify.register(registerPurchasingRoutes);
+  fastify.register(registerSalesRoutes);
 
   return fastify;
 };
@@ -86,4 +88,6 @@ const start = async () => {
   }
 };
 
-void start();
+if (env.NODE_ENV !== 'test') {
+  void start();
+}
