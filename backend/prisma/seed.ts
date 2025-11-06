@@ -30,6 +30,21 @@ async function main() {
   });
 
   console.info('Seeded owner account', { email: OWNER_EMAIL.toLowerCase() });
+
+  await prisma.setting.upsert({
+    where: { key: 'inventory.low_stock_threshold' },
+    update: {
+      value: '5',
+    },
+    create: {
+      key: 'inventory.low_stock_threshold',
+      value: '5',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+
+  console.info('Ensured inventory low stock threshold setting');
 }
 
 main()

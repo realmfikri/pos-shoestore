@@ -41,6 +41,8 @@ const envSchema = z.object({
   MEDIA_OPTIMIZATION_ENABLED: booleanFromEnv.optional().default(false),
   MEDIA_KEEP_ORIGINAL: booleanFromEnv.optional().default(true),
   MEDIA_OPTIMIZED_PREFIX: z.string().min(1).default('optimized/'),
+  REDIS_URL: z.string().url().optional(),
+  REPORT_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -63,4 +65,6 @@ export const env: Env = envSchema.parse({
   MEDIA_OPTIMIZATION_ENABLED: process.env.MEDIA_OPTIMIZATION_ENABLED,
   MEDIA_KEEP_ORIGINAL: process.env.MEDIA_KEEP_ORIGINAL,
   MEDIA_OPTIMIZED_PREFIX: process.env.MEDIA_OPTIMIZED_PREFIX,
+  REDIS_URL: process.env.REDIS_URL,
+  REPORT_CACHE_TTL_SECONDS: process.env.REPORT_CACHE_TTL_SECONDS,
 });
