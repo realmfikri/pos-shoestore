@@ -478,7 +478,7 @@ describe('purchase order receiving flow', () => {
     const purchaseOrder = purchaseOrderResponse.json() as {
       id: string;
       status: PurchaseOrderStatus;
-      items: PurchaseOrderItem[];
+      items: Array<{ id: string; quantityOrdered: number; quantityReceived: number }>;
     };
 
     expect(purchaseOrder.status).toBe(PurchaseOrderStatus.DRAFT);
@@ -502,13 +502,17 @@ describe('purchase order receiving flow', () => {
     expect(receiveResponse.statusCode).toBe(200);
     const receivedOrder = receiveResponse.json() as {
       status: PurchaseOrderStatus;
-      items: PurchaseOrderItem[];
-      receipts: Array<GoodsReceipt & { items: GoodsReceiptItem[] }>;
+      items: Array<{ id: string; quantityReceived: number }>;
+      receipts: Array<{
+        id: string;
+        items: Array<{ purchaseOrderItemId: string; quantityReceived: number; costCents: number | null }>;
+      }>;
     };
 
     expect(receivedOrder.status).toBe(PurchaseOrderStatus.RECEIVED);
     expect(receivedOrder.items[0].quantityReceived).toBe(5);
     expect(receivedOrder.receipts).toHaveLength(1);
+    expect(receivedOrder.receipts[0].items[0].purchaseOrderItemId).toBe(purchaseOrder.items[0].id);
     expect(receivedOrder.receipts[0].items[0].quantityReceived).toBe(5);
     expect(receivedOrder.receipts[0].items[0].costCents).toBe(650);
 
