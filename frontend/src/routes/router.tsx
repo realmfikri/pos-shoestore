@@ -5,6 +5,7 @@ import { LoginPage } from './LoginPage'
 import { PosDashboard } from './PosDashboard'
 import { InventoryIndex } from './InventoryIndex'
 import { InventoryDetail } from './InventoryDetail'
+import { InventoryQuickAdd } from './InventoryQuickAdd'
 import { ReceiveShipment } from './ReceiveShipment'
 import { ReportsOverview } from './ReportsOverview'
 
@@ -32,6 +33,11 @@ export const router = createBrowserRouter([
             path: '/inventory',
             element: <InventoryIndex />,
             handle: { breadcrumb: 'Inventory' },
+          },
+          {
+            path: '/inventory/quick-add',
+            element: <InventoryQuickAdd />,
+            handle: { breadcrumb: 'Quick add' },
           },
           {
             path: '/inventory/:id',

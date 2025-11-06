@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance } from 'fastify';
 import { InventoryImportStatus, Prisma, Role } from '@prisma/client';
+import { z } from 'zod';
 import { requireRoles, AuthenticatedRequest } from '../middleware/authGuard';
 import {
   CreateBrandBodySchema,
@@ -30,6 +31,24 @@ import {
 } from '../services/inventoryImport';
 
 const STOCK_WRITE_ROLES: Role[] = [Role.OWNER, Role.MANAGER, Role.EMPLOYEE];
+
+const BrandListQuerySchema = z
+  .object({
+    search: z
+      .string()
+      .trim()
+      .min(1)
+      .max(100)
+      .optional(),
+    limit: z
+      .coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional(),
+  })
+  .strict();
 
 const buildInventoryFilters = (parsedQuery: InventoryQuery): Prisma.Sql[] => {
   const filters: Prisma.Sql[] = [];
@@ -127,6 +146,38 @@ const handleUnknownError = (fastify: FastifyInstance, error: unknown, message: s
 };
 
 const registerInventoryRoutes = async (fastify: FastifyInstance): Promise<void> => {
+  fastify.get(
+    '/api/brands',
+    { preHandler: requireRoles(STOCK_WRITE_ROLES) },
+    async (request, reply) => {
+      const query = BrandListQuerySchema.parse(request.query ?? {});
+      const where = query.search
+        ? {
+            name: {
+              contains: query.search,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          }
+        : undefined;
+
+      const brands = await fastify.prisma.brand.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        take: query.limit ?? 20,
+      });
+
+      reply.send(
+        brands.map((brand) => ({
+          id: brand.id,
+          name: brand.name,
+          description: brand.description,
+          createdAt: brand.createdAt.toISOString(),
+          updatedAt: brand.updatedAt.toISOString(),
+        })),
+      );
+    },
+  );
+
   fastify.post(
     '/api/brands',
     { preHandler: requireRoles(STOCK_WRITE_ROLES) },

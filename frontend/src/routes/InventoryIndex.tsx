@@ -33,12 +33,20 @@ export const InventoryIndex = () => {
           <h3 className="text-lg font-semibold text-brand-dark">Inventory</h3>
           <p className="text-sm text-ink-500">Monitor footwear availability and restock thresholds in real time.</p>
         </div>
-        <Link
-          to="/receive"
-          className="button-primary"
-        >
-          Receive shipment
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <Link
+            to="/inventory/quick-add"
+            className="button-primary sm:w-auto"
+          >
+            Tambah Barang Cepat
+          </Link>
+          <Link
+            to="/receive"
+            className="rounded-full border border-ink-200 px-4 py-1.5 text-sm font-semibold text-ink-600 transition hover:border-brand-primary hover:text-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+          >
+            Receive shipment
+          </Link>
+        </div>
       </div>
       {isLoading ? <p className="text-sm text-ink-500">Loading inventory…</p> : null}
       {error ? <p className="text-sm text-red-600">{(error as Error).message}</p> : null}
