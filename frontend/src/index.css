@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --brand-primary: #8a1c24;
+    --brand-secondary: #f97316;
+    --brand-accent: #fcd34d;
+    --surface-muted: #fff7ed;
+  }
+
+  body {
+    @apply min-h-screen bg-brand-surface text-ink-800 antialiased;
+    background-image: theme('backgroundImage.hero-texture');
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display text-ink-900;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-white/95 p-6 shadow-brand ring-1 ring-ink-50 backdrop-blur;
+  }
+
+  .button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary;
+  }
+}
