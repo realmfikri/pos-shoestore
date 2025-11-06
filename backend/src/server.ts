@@ -4,16 +4,24 @@ import fastifyJwt from '@fastify/jwt';
 import { ZodError } from 'zod';
 import { env } from './config/env';
 import prismaPlugin from './plugins/prisma';
+import minioPlugin from './plugins/minio';
+import imageOptimizationPlugin from './plugins/imageOptimization';
 import registerHealthRoutes from './routes/health';
 import registerAuthRoutes from './routes/auth';
 import registerInventoryRoutes from './routes/inventory';
 import registerPurchasingRoutes from './routes/purchasing';
 import registerSalesRoutes from './routes/sales';
+import registerMediaRoutes from './routes/media';
 import { PrismaClient } from '@prisma/client';
+import { Client as MinioClient } from 'minio';
+import { ImageOptimizationQueue } from './utils/imageOptimizationQueue';
 
 export type BuildServerOptions = {
   prismaClient?: PrismaClient;
   logger?: boolean;
+  minioClient?: MinioClient;
+  imageOptimizationQueue?: ImageOptimizationQueue;
+  mediaOptimizationEnabled?: boolean;
 };
 
 const registerPrisma = (fastify: FastifyInstance, prismaClient?: PrismaClient) => {
@@ -32,6 +40,28 @@ const registerPrisma = (fastify: FastifyInstance, prismaClient?: PrismaClient) =
   });
 };
 
+const registerMinio = (fastify: FastifyInstance, minioClient?: MinioClient) => {
+  if (minioClient) {
+    fastify.decorate('minio', minioClient);
+    fastify.decorate('mediaBucket', env.MINIO_BUCKET);
+    return;
+  }
+
+  fastify.register(minioPlugin);
+};
+
+const registerImageOptimization = (
+  fastify: FastifyInstance,
+  queue?: ImageOptimizationQueue,
+) => {
+  if (queue) {
+    fastify.decorate('imageOptimizationQueue', queue);
+    return;
+  }
+
+  fastify.register(imageOptimizationPlugin);
+};
+
 export const buildServer = (options: BuildServerOptions = {}) => {
   const fastify = Fastify({
     logger: options.logger ?? true,
@@ -42,6 +72,9 @@ export const buildServer = (options: BuildServerOptions = {}) => {
   });
 
   registerPrisma(fastify, options.prismaClient);
+  fastify.decorate('mediaOptimizationEnabled', options.mediaOptimizationEnabled ?? env.MEDIA_OPTIMIZATION_ENABLED);
+  registerMinio(fastify, options.minioClient);
+  registerImageOptimization(fastify, options.imageOptimizationQueue);
 
   fastify.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
@@ -73,6 +106,7 @@ export const buildServer = (options: BuildServerOptions = {}) => {
   fastify.register(registerInventoryRoutes);
   fastify.register(registerPurchasingRoutes);
   fastify.register(registerSalesRoutes);
+  fastify.register(registerMediaRoutes);
 
   return fastify;
 };
