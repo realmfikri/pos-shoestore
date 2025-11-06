@@ -52,6 +52,8 @@ vi.mock('@prisma/client', () => {
 });
 
 import { randomUUID } from 'crypto';
+import type { Client as MinioClient } from 'minio';
+import type { ImageOptimizationQueue } from '../utils/imageOptimizationQueue';
 import {
   GoodsReceipt,
   GoodsReceiptItem,
@@ -413,7 +415,7 @@ describe('purchase order receiving flow', () => {
     process.env.MEDIA_OPTIMIZED_PREFIX = 'optimized/';
     prisma = new FakePrismaClient();
     const minio = {};
-    const queue = { enqueue: () => {} };
+    const queue: Pick<ImageOptimizationQueue, 'enqueue'> = { enqueue: () => {} };
     const now = new Date();
     prisma.seedVariant({
       id: VARIANT_ID,
@@ -429,8 +431,8 @@ describe('purchase order receiving flow', () => {
     });
     server = buildServer({
       prismaClient: prisma as unknown as PrismaClient,
-      minioClient: minio as any,
-      imageOptimizationQueue: queue as any,
+      minioClient: minio as unknown as MinioClient,
+      imageOptimizationQueue: queue as unknown as ImageOptimizationQueue,
       mediaOptimizationEnabled: false,
       logger: false,
     });

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { FastifyInstance } from 'fastify';
-import { Prisma, Role } from '@prisma/client';
+import { InventoryImportStatus, Prisma, Role } from '@prisma/client';
 import { requireRoles, AuthenticatedRequest } from '../middleware/authGuard';
 import {
   CreateBrandBodySchema,
@@ -9,14 +9,88 @@ import {
   CreateInitialStockBodySchema,
   InventoryQuerySchema,
   InventoryItemSchema,
+  InventoryQuery,
 } from '../types/inventoryContracts';
+import {
+  InventoryImportApplyResponseSchema,
+  InventoryImportPreviewResponseSchema,
+} from '../types/inventoryImportContracts';
 import {
   BarcodeLookupParamsSchema,
   VariantLookupParamsSchema,
   VariantLookupResponseSchema,
 } from '../types/salesContracts';
+import {
+  parseInventoryImportCsv,
+  loadInventoryImportContext,
+  analyseInventoryImport,
+  processInventoryImport,
+  failInventoryImportBatch,
+  completeInventoryImportBatch,
+} from '../services/inventoryImport';
 
 const STOCK_WRITE_ROLES: Role[] = [Role.OWNER, Role.MANAGER, Role.EMPLOYEE];
+
+const buildInventoryFilters = (parsedQuery: InventoryQuery): Prisma.Sql[] => {
+  const filters: Prisma.Sql[] = [];
+
+  if (parsedQuery.brandId) {
+    filters.push(Prisma.sql`cs.brand_id = ${parsedQuery.brandId}`);
+  }
+
+  if (parsedQuery.brand) {
+    filters.push(Prisma.sql`lower(cs.brand_name) = lower(${parsedQuery.brand})`);
+  }
+
+  if (parsedQuery.category) {
+    filters.push(Prisma.sql`cs.category ILIKE ${`%${parsedQuery.category}%`}`);
+  }
+
+  if (parsedQuery.size) {
+    filters.push(Prisma.sql`cs.size ILIKE ${`%${parsedQuery.size}%`}`);
+  }
+
+  if (parsedQuery.color) {
+    filters.push(Prisma.sql`cs.color ILIKE ${`%${parsedQuery.color}%`}`);
+  }
+
+  const tagParam = parsedQuery.tag
+    ? Array.isArray(parsedQuery.tag)
+      ? parsedQuery.tag
+      : [parsedQuery.tag]
+    : undefined;
+
+  if (tagParam && tagParam.length > 0) {
+    const tagArray = Prisma.sql`ARRAY[${Prisma.join(
+      tagParam.map((tag) => Prisma.sql`${tag}`),
+      Prisma.sql`, `,
+    )}]::text[]`;
+    filters.push(Prisma.sql`cs.tags && ${tagArray}`);
+  }
+
+  if (parsedQuery.search) {
+    const searchTerm = parsedQuery.search;
+    filters.push(
+      Prisma.sql`
+        (
+          b."searchVector" @@ plainto_tsquery('simple', ${searchTerm})
+          OR p."searchVector" @@ plainto_tsquery('simple', ${searchTerm})
+          OR similarity(lower(cs.sku), lower(${searchTerm})) > 0.25
+          OR similarity(lower(b."name"), lower(${searchTerm})) > 0.25
+          OR similarity(lower(p."name"), lower(${searchTerm})) > 0.25
+        )
+      `,
+    );
+  }
+
+  return filters;
+};
+
+const buildWhereClause = (filters: Prisma.Sql[]) =>
+  filters.length > 0 ? Prisma.sql`WHERE ${Prisma.join(filters, Prisma.sql` AND `)}` : Prisma.sql``;
+
+const csvEscape = (value: string) =>
+  /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 
 type InventoryRow = {
   variant_id: string;
@@ -33,6 +107,18 @@ type InventoryRow = {
   price_cents: number | null;
   description: string | null;
   total_count: bigint | number | null;
+};
+
+type InventoryExportRow = {
+  brand_name: string | null;
+  product_name: string | null;
+  sku: string | null;
+  size: string | null;
+  color: string | null;
+  price_cents: number | null;
+  on_hand: bigint | number | null;
+  tags: string[] | null;
+  barcode: string | null;
 };
 
 const handleUnknownError = (fastify: FastifyInstance, error: unknown, message: string) => {
@@ -240,6 +326,286 @@ const registerInventoryRoutes = async (fastify: FastifyInstance): Promise<void> 
     },
   );
 
+  fastify.post(
+    '/api/inventory/import/preview',
+    { preHandler: requireRoles([Role.OWNER]) },
+    async (request, reply) => {
+      const file = await request.file();
+
+      if (!file) {
+        reply.code(400).send({ message: 'CSV file upload is required' });
+        return;
+      }
+
+      let buffer: Buffer;
+      try {
+        buffer = await file.toBuffer();
+      } catch (error) {
+        fastify.log.error({ err: error }, 'Failed to read uploaded CSV');
+        reply.code(400).send({ message: 'Unable to read uploaded CSV file' });
+        return;
+      }
+
+      if (buffer.length === 0) {
+        reply.code(400).send({ message: 'Uploaded CSV file is empty' });
+        return;
+      }
+
+      let rows;
+      try {
+        rows = parseInventoryImportCsv(buffer);
+      } catch (error) {
+        fastify.log.warn({ err: error }, 'Failed to parse inventory import CSV');
+        reply.code(400).send({ message: 'CSV contents could not be parsed' });
+        return;
+      }
+
+      if (rows.length === 0) {
+        const emptyResponse = InventoryImportPreviewResponseSchema.parse({
+          rows: [],
+          summary: {
+            totalRows: 0,
+            create: { brands: 0, products: 0, variants: 0 },
+            update: { variants: 0, priceChanges: 0, stockAdjustments: 0 },
+            duplicates: [],
+            blockingIssueCount: 0,
+          },
+        });
+        reply.send(emptyResponse);
+        return;
+      }
+
+      const context = await loadInventoryImportContext(fastify.prisma, rows);
+      const analysis = analyseInventoryImport(rows, context);
+
+      const previewRows = analysis.rows.map((row) => {
+        const { brandPlan, productPlan, variantPlan, ...rest } = row;
+        void brandPlan;
+        void productPlan;
+        void variantPlan;
+        return rest;
+      });
+
+      const response = InventoryImportPreviewResponseSchema.parse({
+        rows: previewRows,
+        summary: analysis.summary,
+      });
+
+      reply.send(response);
+    },
+  );
+
+  fastify.post(
+    '/api/inventory/import/apply',
+    { preHandler: requireRoles([Role.OWNER]) },
+    async (request, reply) => {
+      const user = (request as AuthenticatedRequest).user;
+      const file = await request.file();
+
+      if (!file) {
+        reply.code(400).send({ message: 'CSV file upload is required' });
+        return;
+      }
+
+      let buffer: Buffer;
+      try {
+        buffer = await file.toBuffer();
+      } catch (error) {
+        fastify.log.error({ err: error }, 'Failed to read uploaded CSV');
+        reply.code(400).send({ message: 'Unable to read uploaded CSV file' });
+        return;
+      }
+
+      if (buffer.length === 0) {
+        reply.code(400).send({ message: 'Uploaded CSV file is empty' });
+        return;
+      }
+
+      let rows;
+      try {
+        rows = parseInventoryImportCsv(buffer);
+      } catch (error) {
+        fastify.log.warn({ err: error }, 'Failed to parse inventory import CSV');
+        reply.code(400).send({ message: 'CSV contents could not be parsed' });
+        return;
+      }
+
+      if (rows.length === 0) {
+        reply.code(400).send({ message: 'CSV does not contain any rows' });
+        return;
+      }
+
+      const context = await loadInventoryImportContext(fastify.prisma, rows);
+      const analysis = analyseInventoryImport(rows, context);
+
+      const previewRows = analysis.rows.map((row) => {
+        const { brandPlan, productPlan, variantPlan, ...rest } = row;
+        void brandPlan;
+        void productPlan;
+        void variantPlan;
+        return rest;
+      });
+
+      if (analysis.summary.blockingIssueCount > 0) {
+        const preview = InventoryImportPreviewResponseSchema.parse({
+          rows: previewRows,
+          summary: analysis.summary,
+        });
+        reply.code(400).send({
+          message: 'Import contains blocking issues. Resolve them before applying.',
+          preview,
+        });
+        return;
+      }
+
+      const shouldQueue = rows.length > 1000;
+      const chunkSize = rows.length > 2000 ? 500 : shouldQueue ? 250 : 200;
+
+      const batch = await fastify.prisma.inventoryImportBatch.create({
+        data: {
+          id: randomUUID(),
+          status: shouldQueue ? InventoryImportStatus.PENDING : InventoryImportStatus.PROCESSING,
+          uploadedById: user.sub,
+          originalFileName: file.filename ?? 'inventory-import.csv',
+          totalRows: rows.length,
+          chunkSize,
+        },
+      });
+
+      const runImport = async () => {
+        try {
+          await fastify.prisma.inventoryImportBatch.update({
+            where: { id: batch.id },
+            data: { status: InventoryImportStatus.PROCESSING },
+          });
+
+          await processInventoryImport({
+            fastify,
+            batchId: batch.id,
+            userId: user.sub,
+            chunkSize,
+            rows: analysis.rows,
+            brandPlans: analysis.brandPlans,
+            productPlans: analysis.productPlans,
+            variantPlans: analysis.variantPlans,
+            variantStocks: context.variantStocks,
+          });
+
+          await completeInventoryImportBatch(fastify.prisma, batch.id);
+        } catch (error) {
+          fastify.log.error({ err: error, batchId: batch.id }, 'Inventory import failed');
+          const reason = error instanceof Error ? error.message : 'Unexpected import failure';
+          await failInventoryImportBatch(fastify.prisma, batch.id, reason);
+          throw error;
+        }
+      };
+
+      if (shouldQueue) {
+        setImmediate(() => {
+          runImport().catch(() => {
+            // errors are logged and recorded in the batch
+          });
+        });
+
+        const response = InventoryImportApplyResponseSchema.parse({
+          batchId: batch.id,
+          status: 'QUEUED',
+          summary: analysis.summary,
+        });
+
+        reply.code(202).send(response);
+        return;
+      }
+
+      try {
+        await runImport();
+      } catch (error) {
+        fastify.log.error({ err: error, batchId: batch.id }, 'Failed to apply inventory import');
+        reply.code(500).send({ message: 'Failed to apply inventory import' });
+        return;
+      }
+
+      const response = InventoryImportApplyResponseSchema.parse({
+        batchId: batch.id,
+        status: 'COMPLETED',
+        summary: analysis.summary,
+      });
+
+      reply.send(response);
+    },
+  );
+
+  fastify.get(
+    '/api/inventory/export',
+    { preHandler: requireRoles([Role.OWNER]) },
+    async (request, reply) => {
+      const parsedQuery = InventoryQuerySchema.parse(request.query);
+      const filters = buildInventoryFilters(parsedQuery);
+      const whereClause = buildWhereClause(filters);
+
+      const rows = await fastify.prisma.$queryRaw<InventoryExportRow[]>(
+        Prisma.sql`
+          SELECT
+            cs.brand_name,
+            cs.product_name,
+            cs.sku,
+            cs.size,
+            cs.color,
+            cs.price_cents,
+            cs.on_hand,
+            cs.tags,
+            v."barcode"
+          FROM "current_stock" cs
+          INNER JOIN "Variant" v ON v."id" = cs.variant_id
+          INNER JOIN "Product" p ON p."id" = cs.product_id
+          INNER JOIN "Brand" b ON b."id" = cs.brand_id
+          ${whereClause}
+          ORDER BY cs.brand_name, cs.product_name, cs.sku
+        `,
+      );
+
+      const headers = [
+        'Brand',
+        'Product',
+        'SKU',
+        'Size',
+        'Color',
+        'Price',
+        'OnHand',
+        'Tags',
+        'Barcode',
+      ];
+      const lines = [headers.join(',')];
+
+      for (const row of rows) {
+        const price = typeof row.price_cents === 'number' ? (row.price_cents / 100).toFixed(2) : '';
+        const onHand = row.on_hand != null ? String(Number(row.on_hand)) : '';
+        const tags = (row.tags ?? []).join(', ');
+
+        const values = [
+          row.brand_name ?? '',
+          row.product_name ?? '',
+          row.sku ?? '',
+          row.size ?? '',
+          row.color ?? '',
+          price,
+          onHand,
+          tags,
+          row.barcode ?? '',
+        ].map((value) => csvEscape(value));
+
+        lines.push(values.join(','));
+      }
+
+      const csv = lines.join('\n');
+
+      reply
+        .header('Content-Type', 'text/csv; charset=utf-8')
+        .header('Content-Disposition', 'attachment; filename="inventory-export.csv"')
+        .send(csv);
+    },
+  );
+
   fastify.get(
     '/api/inventory',
     { preHandler: requireRoles([Role.OWNER, Role.MANAGER, Role.EMPLOYEE]) },
@@ -248,61 +614,9 @@ const registerInventoryRoutes = async (fastify: FastifyInstance): Promise<void> 
       const page = parsedQuery.page;
       const pageSize = parsedQuery.pageSize;
       const offset = (page - 1) * pageSize;
-      const tags = parsedQuery.tag
-        ? Array.isArray(parsedQuery.tag)
-          ? parsedQuery.tag
-          : [parsedQuery.tag]
-        : undefined;
 
-      const filters: Prisma.Sql[] = [];
-
-      if (parsedQuery.brandId) {
-        filters.push(Prisma.sql`cs.brand_id = ${parsedQuery.brandId}`);
-      }
-
-      if (parsedQuery.brand) {
-        filters.push(Prisma.sql`lower(cs.brand_name) = lower(${parsedQuery.brand})`);
-      }
-
-      if (parsedQuery.category) {
-        filters.push(Prisma.sql`cs.category ILIKE ${`%${parsedQuery.category}%`}`);
-      }
-
-      if (parsedQuery.size) {
-        filters.push(Prisma.sql`cs.size ILIKE ${`%${parsedQuery.size}%`}`);
-      }
-
-      if (parsedQuery.color) {
-        filters.push(Prisma.sql`cs.color ILIKE ${`%${parsedQuery.color}%`}`);
-      }
-
-      if (tags && tags.length > 0) {
-        const tagArray = Prisma.sql`ARRAY[${Prisma.join(
-          tags.map((tag) => Prisma.sql`${tag}`),
-          Prisma.sql`, `,
-        )}]::text[]`;
-        filters.push(Prisma.sql`cs.tags && ${tagArray}`);
-      }
-
-      if (parsedQuery.search) {
-        const searchTerm = parsedQuery.search;
-        filters.push(
-          Prisma.sql`
-          (
-            b."searchVector" @@ plainto_tsquery('simple', ${searchTerm})
-            OR p."searchVector" @@ plainto_tsquery('simple', ${searchTerm})
-            OR similarity(lower(cs.sku), lower(${searchTerm})) > 0.25
-            OR similarity(lower(b."name"), lower(${searchTerm})) > 0.25
-            OR similarity(lower(p."name"), lower(${searchTerm})) > 0.25
-          )
-        `,
-        );
-      }
-
-      const whereClause =
-        filters.length > 0
-          ? Prisma.sql`WHERE ${Prisma.join(filters, Prisma.sql` AND `)}`
-          : Prisma.sql``;
+      const filters = buildInventoryFilters(parsedQuery);
+      const whereClause = buildWhereClause(filters);
 
       const rows = await fastify.prisma.$queryRaw<InventoryRow[]>(
         Prisma.sql`

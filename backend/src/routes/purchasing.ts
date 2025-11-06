@@ -132,7 +132,7 @@ const registerPurchasingRoutes = async (fastify: FastifyInstance): Promise<void>
         });
 
         reply.send(supplier);
-      } catch (error) {
+      } catch {
         reply.code(404).send({ message: 'Supplier not found' });
       }
     },
@@ -147,7 +147,7 @@ const registerPurchasingRoutes = async (fastify: FastifyInstance): Promise<void>
       try {
         await fastify.prisma.supplier.delete({ where: { id: params.id } });
         reply.code(204).send();
-      } catch (error) {
+      } catch {
         reply.code(404).send({ message: 'Supplier not found' });
       }
     },
