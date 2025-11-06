@@ -13,9 +13,11 @@ import registerInventoryRoutes from './routes/inventory';
 import registerPurchasingRoutes from './routes/purchasing';
 import registerSalesRoutes from './routes/sales';
 import registerMediaRoutes from './routes/media';
+import registerReportsRoutes from './routes/reports';
 import { PrismaClient } from '@prisma/client';
 import { Client as MinioClient } from 'minio';
 import { ImageOptimizationQueue } from './utils/imageOptimizationQueue';
+import { ReportCache, createReportCache } from './utils/cache';
 
 export type BuildServerOptions = {
   prismaClient?: PrismaClient;
@@ -23,6 +25,7 @@ export type BuildServerOptions = {
   minioClient?: MinioClient;
   imageOptimizationQueue?: ImageOptimizationQueue;
   mediaOptimizationEnabled?: boolean;
+  reportCache?: ReportCache;
 };
 
 const registerPrisma = (fastify: FastifyInstance, prismaClient?: PrismaClient) => {
@@ -45,6 +48,7 @@ const registerMinio = (fastify: FastifyInstance, minioClient?: MinioClient) => {
   if (minioClient) {
     fastify.decorate('minio', minioClient);
     fastify.decorate('mediaBucket', env.MINIO_BUCKET);
+    fastify.register(async () => {}, { name: 'minio' });
     return;
   }
 
@@ -83,6 +87,13 @@ export const buildServer = (options: BuildServerOptions = {}) => {
   fastify.decorate('mediaOptimizationEnabled', options.mediaOptimizationEnabled ?? env.MEDIA_OPTIMIZATION_ENABLED);
   registerMinio(fastify, options.minioClient);
   registerImageOptimization(fastify, options.imageOptimizationQueue);
+  const reportCache = options.reportCache ?? createReportCache();
+  fastify.decorate('reportCache', reportCache);
+  fastify.addHook('onClose', async () => {
+    if (typeof reportCache.close === 'function') {
+      await reportCache.close();
+    }
+  });
 
   fastify.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
@@ -115,6 +126,7 @@ export const buildServer = (options: BuildServerOptions = {}) => {
   fastify.register(registerPurchasingRoutes);
   fastify.register(registerSalesRoutes);
   fastify.register(registerMediaRoutes);
+  fastify.register(registerReportsRoutes);
 
   return fastify;
 };

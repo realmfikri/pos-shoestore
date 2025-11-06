@@ -38,6 +38,9 @@ importers:
       p-queue:
         specifier: ^8.0.1
         version: 8.1.1
+      redis:
+        specifier: ^4.6.15
+        version: 4.7.1
       sharp:
         specifier: ^0.33.5
         version: 0.33.5
@@ -535,6 +538,35 @@ packages:
   '@prisma/get-platform@6.19.0':
     resolution: {integrity: sha512-ym85WDO2yDhC3fIXHWYpG3kVMBA49cL1XD2GCsCF8xbwoy2OkDQY44gEbAt2X46IQ4Apq9H6g0Ex1iFfPqEkHA==}
 
+  '@redis/bloom@1.2.0':
+    resolution: {integrity: sha512-HG2DFjYKbpNmVXsa0keLHp/3leGJz1mjh09f2RLGGLQZzSHpkmZWuwJbAvo3QcRY8p80m5+ZdXZdYOSBLlp7Cg==}
+    peerDependencies:
+      '@redis/client': ^1.0.0
+
+  '@redis/client@1.6.1':
+    resolution: {integrity: sha512-/KCsg3xSlR+nCK8/8ZYSknYxvXHwubJrU82F3Lm1Fp6789VQ0/3RJKfsmRXjqfaTA++23CvC3hqmqe/2GEt6Kw==}
+    engines: {node: '>=14'}
+
+  '@redis/graph@1.1.1':
+    resolution: {integrity: sha512-FEMTcTHZozZciLRl6GiiIB4zGm5z5F3F6a6FZCyrfxdKOhFlGkiAqlexWMBzCi4DcRoyiOsuLfW+cjlGWyExOw==}
+    peerDependencies:
+      '@redis/client': ^1.0.0
+
+  '@redis/json@1.0.7':
+    resolution: {integrity: sha512-6UyXfjVaTBTJtKNG4/9Z8PSpKE6XgSyEb8iwaqDcy+uKrd/DGYHTWkUdnQDyzm727V7p21WUMhsqz5oy65kPcQ==}
+    peerDependencies:
+      '@redis/client': ^1.0.0
+
+  '@redis/search@1.2.0':
+    resolution: {integrity: sha512-tYoDBbtqOVigEDMAcTGsRlMycIIjwMCgD8eR2t0NANeQmgK/lvxNAvYyb6bZDD4frHRhIHkJu2TBRvB0ERkOmw==}
+    peerDependencies:
+      '@redis/client': ^1.0.0
+
+  '@redis/time-series@1.1.0':
+    resolution: {integrity: sha512-c1Q99M5ljsIuc4YdaCwfUEXsofakb9c8+Zse2qxTadu8TalLXuAESzLvFAvNVbkmSlvlzIQOLpBCmWI9wTOt+g==}
+    peerDependencies:
+      '@redis/client': ^1.0.0
+
   '@rollup/rollup-android-arm-eabi@4.52.5':
     resolution: {integrity: sha512-8c1vW4ocv3UOMp9K+gToY5zL2XiiVw3k7f1ksf4yO1FlDFQ1C2u72iACFnSOceJFsWskc2WZNqeRhFRPzv+wtQ==}
     cpu: [arm]
@@ -912,6 +944,10 @@ packages:
   citty@0.1.6:
     resolution: {integrity: sha512-tskPPKEs8D2KPafUypv2gxwJP8h/OaJmC82QQGGDQcHvXX43xF2VDACcJVmZ0EuSxkpO9Kc4MlrA3q0+FG58AQ==}
 
+  cluster-key-slot@1.1.2:
+    resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
+    engines: {node: '>=0.10.0'}
+
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
     engines: {node: '>=7.0.0'}
@@ -1223,6 +1259,10 @@ packages:
   generator-function@2.0.1:
     resolution: {integrity: sha512-SFdFmIJi+ybC0vjlHN0ZGVGHc3lgE0DxPAT0djjVg+kjOnSqclqmj0KQ7ykTOLP6YxoqOvuAODGdcHJn+43q3g==}
     engines: {node: '>= 0.4'}
+
+  generic-pool@3.9.0:
+    resolution: {integrity: sha512-hymDOu5B53XvN4QT9dBmZxPX4CWhBPPLguTZ9MMFeFa/Kg0xWVfylOVNlJji/E7yTZWFd/q9GO5TxDLq156D7g==}
+    engines: {node: '>= 4'}
 
   get-intrinsic@1.3.0:
     resolution: {integrity: sha512-9fSjSaos/fRIVIp+xSJlE6lfwhES7LNtKaCBIamHsjr2na1BiABJPo0mOjjz8GJDURarmCPGqaiVg5mfjb98CQ==}
@@ -1625,6 +1665,9 @@ packages:
     resolution: {integrity: sha512-57frrGM/OCTLqLOAh0mhVA9VBMHd+9U7Zb2THMGdBUoZVOtGbJzjxsYGDJ3A9AYYCP4hn6y1TVbaOfzWtm5GFg==}
     engines: {node: '>= 12.13.0'}
 
+  redis@4.7.1:
+    resolution: {integrity: sha512-S1bJDnqLftzHXHP8JsT5II/CtHWQrASX5K96REjWjlmWKrviSOLWmM7QnRLstAWsu1VBBV1ffV6DzCvxNP0UJQ==}
+
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
@@ -1950,6 +1993,9 @@ packages:
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
+
+  yallist@4.0.0:
+    resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
 
   yn@3.1.1:
     resolution: {integrity: sha512-Ux4ygGWsu2c7isFWe8Yu1YluJmqVhxqK2cLXNQA5AcC3QfbGNpM7fu0Y8b/z16pXLnFxZYvWhd3fhBY9DLmC6Q==}
@@ -2307,6 +2353,32 @@ snapshots:
   '@prisma/get-platform@6.19.0':
     dependencies:
       '@prisma/debug': 6.19.0
+
+  '@redis/bloom@1.2.0(@redis/client@1.6.1)':
+    dependencies:
+      '@redis/client': 1.6.1
+
+  '@redis/client@1.6.1':
+    dependencies:
+      cluster-key-slot: 1.1.2
+      generic-pool: 3.9.0
+      yallist: 4.0.0
+
+  '@redis/graph@1.1.1(@redis/client@1.6.1)':
+    dependencies:
+      '@redis/client': 1.6.1
+
+  '@redis/json@1.0.7(@redis/client@1.6.1)':
+    dependencies:
+      '@redis/client': 1.6.1
+
+  '@redis/search@1.2.0(@redis/client@1.6.1)':
+    dependencies:
+      '@redis/client': 1.6.1
+
+  '@redis/time-series@1.1.0(@redis/client@1.6.1)':
+    dependencies:
+      '@redis/client': 1.6.1
 
   '@rollup/rollup-android-arm-eabi@4.52.5':
     optional: true
@@ -2702,6 +2774,8 @@ snapshots:
     dependencies:
       consola: 3.4.2
 
+  cluster-key-slot@1.1.2: {}
+
   color-convert@2.0.1:
     dependencies:
       color-name: 1.1.4
@@ -3043,6 +3117,8 @@ snapshots:
   function-bind@1.1.2: {}
 
   generator-function@2.0.1: {}
+
+  generic-pool@3.9.0: {}
 
   get-intrinsic@1.3.0:
     dependencies:
@@ -3441,6 +3517,15 @@ snapshots:
 
   real-require@0.2.0: {}
 
+  redis@4.7.1:
+    dependencies:
+      '@redis/bloom': 1.2.0(@redis/client@1.6.1)
+      '@redis/client': 1.6.1
+      '@redis/graph': 1.1.1(@redis/client@1.6.1)
+      '@redis/json': 1.0.7(@redis/client@1.6.1)
+      '@redis/search': 1.2.0(@redis/client@1.6.1)
+      '@redis/time-series': 1.1.0(@redis/client@1.6.1)
+
   require-from-string@2.0.2: {}
 
   resolve-from@4.0.0: {}
@@ -3772,6 +3857,8 @@ snapshots:
   xmlbuilder@11.0.1: {}
 
   xtend@4.0.2: {}
+
+  yallist@4.0.0: {}
 
   yn@3.1.1: {}
 

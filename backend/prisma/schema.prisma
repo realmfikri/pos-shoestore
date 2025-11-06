@@ -289,6 +289,13 @@ model Media {
   @@index([variantId])
 }
 
+model Setting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 view CurrentStock {
   variantId  String @map("variant_id")
   productId  String @map("product_id")
@@ -304,5 +311,62 @@ view CurrentStock {
   priceCents Int?   @map("price_cents")
 
   @@map("current_stock")
+  @@id([variantId])
+}
+
+view DailySalesTotals {
+  saleDate           DateTime @map("sale_date")
+  grossSalesCents    Int      @map("gross_sales_cents")
+  discountTotalCents Int      @map("discount_total_cents")
+  taxTotalCents      Int      @map("tax_total_cents")
+  netSalesCents      Int      @map("net_sales_cents")
+  saleCount          Int      @map("sale_count")
+
+  @@map("daily_sales_totals")
+  @@id([saleDate])
+}
+
+view SaleItemDailyMetrics {
+  saleDate           DateTime @map("sale_date")
+  variantId          String   @map("variant_id")
+  productId          String   @map("product_id")
+  brandId            String   @map("brand_id")
+  sku                String
+  productName        String   @map("product_name")
+  brandName          String   @map("brand_name")
+  quantitySold       Int      @map("quantity_sold")
+  grossSalesCents    Int      @map("gross_sales_cents")
+  discountTotalCents Int      @map("discount_total_cents")
+  netSalesCents      Int      @map("net_sales_cents")
+  lastSoldAt         DateTime @map("last_sold_at")
+
+  @@map("sale_item_daily_metrics")
+  @@id([saleDate, variantId])
+}
+
+view BrandDailyMetrics {
+  saleDate           DateTime @map("sale_date")
+  brandId            String   @map("brand_id")
+  brandName          String   @map("brand_name")
+  quantitySold       Int      @map("quantity_sold")
+  grossSalesCents    Int      @map("gross_sales_cents")
+  discountTotalCents Int      @map("discount_total_cents")
+  netSalesCents      Int      @map("net_sales_cents")
+
+  @@map("brand_daily_metrics")
+  @@id([saleDate, brandId])
+}
+
+view LowStockVariants {
+  variantId   String @map("variant_id")
+  productId   String @map("product_id")
+  brandId     String @map("brand_id")
+  sku         String
+  productName String @map("product_name")
+  brandName   String @map("brand_name")
+  onHand      Int    @map("on_hand")
+  threshold   Int
+
+  @@map("low_stock_variants")
   @@id([variantId])
 }

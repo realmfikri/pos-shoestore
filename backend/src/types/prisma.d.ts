@@ -152,6 +152,13 @@ declare module '@prisma/client' {
     createdAt: Date;
   };
 
+  export type Setting = {
+    key: string;
+    value: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+
   export type CurrentStock = {
     variantId: string;
     productId: string;
@@ -165,6 +172,51 @@ declare module '@prisma/client' {
     color: string | null;
     tags: string[];
     priceCents: number | null;
+  };
+
+  export type DailySalesTotals = {
+    saleDate: Date;
+    grossSalesCents: number;
+    discountTotalCents: number;
+    taxTotalCents: number;
+    netSalesCents: number;
+    saleCount: number;
+  };
+
+  export type SaleItemDailyMetrics = {
+    saleDate: Date;
+    variantId: string;
+    productId: string;
+    brandId: string;
+    sku: string;
+    productName: string;
+    brandName: string;
+    quantitySold: number;
+    grossSalesCents: number;
+    discountTotalCents: number;
+    netSalesCents: number;
+    lastSoldAt: Date;
+  };
+
+  export type BrandDailyMetrics = {
+    saleDate: Date;
+    brandId: string;
+    brandName: string;
+    quantitySold: number;
+    grossSalesCents: number;
+    discountTotalCents: number;
+    netSalesCents: number;
+  };
+
+  export type LowStockVariants = {
+    variantId: string;
+    productId: string;
+    brandId: string;
+    sku: string;
+    productName: string;
+    brandName: string;
+    onHand: number;
+    threshold: number;
   };
 
   export interface PrismaClientOptions {
@@ -257,6 +309,15 @@ declare module '@prisma/client' {
         };
       }): Promise<SaleItem>;
       findMany(args: { where: { saleId?: string } }): Promise<SaleItem[]>;
+    };
+
+    setting: {
+      upsert(args: {
+        where: { key: string };
+        update: Partial<Setting>;
+        create: Setting;
+      }): Promise<Setting>;
+      findUnique(args: { where: { key: string } }): Promise<Setting | null>;
     };
 
     $queryRaw<T = unknown>(
