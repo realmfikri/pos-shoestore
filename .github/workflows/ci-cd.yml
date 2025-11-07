@@ -147,7 +147,7 @@ jobs:
           ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" <<EOSSH
           set -euo pipefail
           cd "${DEPLOY_PATH}"
-          pnpm --dir backend install --frozen-lockfile --prod
+          pnpm --dir backend install --frozen-lockfile
           pnpm --dir backend prisma migrate deploy
           pnpm --dir frontend install --frozen-lockfile
           pnpm --dir frontend build
