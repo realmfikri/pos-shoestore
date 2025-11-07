@@ -1,0 +1,24 @@
+[Unit]
+Description=POS Shoestore Frontend (SSR/static preview)
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=simple
+User=pos-frontend
+Group=pos-frontend
+Environment=NODE_ENV=production
+EnvironmentFile=-/etc/pos-shoestore/frontend.env
+WorkingDirectory=/opt/pos-shoestore/frontend
+# For static bundles use Vite preview; replace ExecStart with SSR command if applicable.
+ExecStart=/usr/bin/env pnpm run preview -- --host 127.0.0.1 --port 4173
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65535
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/pos-shoestore/frontend
+
+[Install]
+WantedBy=multi-user.target

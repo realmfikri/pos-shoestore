@@ -1,0 +1,157 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: 20
+
+jobs:
+  quality:
+    name: Lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: |
+            backend/pnpm-lock.yaml
+            frontend/pnpm-lock.yaml
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint backend
+        working-directory: backend
+        run: pnpm lint
+
+      - name: Test backend
+        working-directory: backend
+        run: pnpm test -- --runInBand
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: pnpm lint
+
+  build:
+    name: Build artifacts
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: |
+            backend/pnpm-lock.yaml
+            frontend/pnpm-lock.yaml
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build backend
+        working-directory: backend
+        run: pnpm build
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm build
+
+      - name: Prepare deploy bundle
+        run: |
+          rm -rf backend/node_modules frontend/node_modules
+          tar -czf pos-shoestore-build.tar.gz backend frontend infra README.md
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-shoestore-build
+          path: pos-shoestore-build.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pos-shoestore-build
+          path: ./artifact
+
+      - name: Extract artifact
+        run: |
+          mkdir deploy
+          tar -xzf artifact/pos-shoestore-build.tar.gz -C deploy
+
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${{ secrets.SSH_PORT }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync build to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            deploy/ "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/" -e "ssh -p ${SSH_PORT}"
+
+      - name: Remote deploy commands
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" <<EOSSH
+          set -euo pipefail
+          cd "${DEPLOY_PATH}"
+          pnpm --dir backend install --frozen-lockfile
+          pnpm --dir backend prisma migrate deploy
+          pnpm --dir frontend install --frozen-lockfile
+          pnpm --dir frontend build
+          sudo systemctl daemon-reload
+          sudo systemctl restart pos-api.service
+          sudo systemctl restart pos-frontend.service
+          EOSSH

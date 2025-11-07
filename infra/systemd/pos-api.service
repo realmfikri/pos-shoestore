@@ -1,0 +1,24 @@
+[Unit]
+Description=POS Shoestore Fastify API
+After=network-online.target postgresql.service
+Requires=network-online.target
+
+[Service]
+Type=simple
+User=pos-api
+Group=pos-api
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/pos-shoestore/backend.env
+WorkingDirectory=/opt/pos-shoestore/backend
+ExecStart=/usr/bin/node dist/server.js
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65535
+# Use a dedicated tmp directory per service
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/pos-shoestore/backend
+
+[Install]
+WantedBy=multi-user.target
