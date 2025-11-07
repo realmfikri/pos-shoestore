@@ -15,11 +15,33 @@ export const ReportDateRangeQuerySchema = z.object({
 
 export type ReportDateRangeQuery = z.infer<typeof ReportDateRangeQuerySchema>;
 
+export const ReportExportFormatSchema = z.enum(['csv', 'pdf']).default('csv');
+
+export type ReportExportFormat = z.infer<typeof ReportExportFormatSchema>;
+
 export const TopReportQuerySchema = ReportDateRangeQuerySchema.extend({
   limit: z.coerce.number().int().positive().max(50).default(10),
 });
 
 export type TopReportQuery = z.infer<typeof TopReportQuerySchema>;
+
+export const ReportExportQuerySchema = ReportDateRangeQuerySchema.extend({
+  format: ReportExportFormatSchema,
+});
+
+export type ReportExportQuery = z.infer<typeof ReportExportQuerySchema>;
+
+export const TopReportExportQuerySchema = TopReportQuerySchema.extend({
+  format: ReportExportFormatSchema,
+});
+
+export type TopReportExportQuery = z.infer<typeof TopReportExportQuerySchema>;
+
+export const LowStockExportQuerySchema = z.object({
+  format: ReportExportFormatSchema,
+});
+
+export type LowStockExportQuery = z.infer<typeof LowStockExportQuerySchema>;
 
 export const DailySalesReportItemSchema = z.object({
   saleDate: z.string(),

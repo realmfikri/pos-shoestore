@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BrowserMultiFormatReader, NotFoundException } from '@zxing/browser'
+import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { Spinner } from '../components/ui/Spinner'
 import { useAuth } from '../modules/auth/AuthProvider'
 import { PaymentModal } from '../modules/pos/PaymentModal'
@@ -226,28 +226,37 @@ export const PosDashboard = () => {
 
     const reader = new BrowserMultiFormatReader()
     let cancelled = false
+    let controls: IScannerControls | undefined
 
-    reader.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
-      if (cancelled) {
-        return
-      }
-
-      if (result) {
-        const barcode = result.getText()
-        if (barcode && barcode !== lastBarcodeRef.current) {
-          lastBarcodeRef.current = barcode
-          setIsScannerActive(false)
-          void handleBarcodeLookup(barcode)
+    void reader
+      .decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
+        if (cancelled) {
+          return
         }
-      } else if (error && !(error instanceof NotFoundException)) {
-        setScannerFeedback({ type: 'error', message: 'Scanner error – try again.' })
-      }
-    })
+
+        if (result) {
+          const barcode = result.getText()
+          if (barcode && barcode !== lastBarcodeRef.current) {
+            lastBarcodeRef.current = barcode
+            setIsScannerActive(false)
+            void handleBarcodeLookup(barcode)
+          }
+        } else if (error && error.name !== 'NotFoundException') {
+          setScannerFeedback({ type: 'error', message: 'Scanner error – try again.' })
+        }
+      })
+      .then((ctrl) => {
+        controls = ctrl
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setScannerFeedback({ type: 'error', message: 'Unable to access camera.' })
+        }
+      })
 
     return () => {
       cancelled = true
-      reader.reset()
-      reader.stopContinuousDecode()
+      controls?.stop()
     }
   }, [handleBarcodeLookup, isScannerActive])
 

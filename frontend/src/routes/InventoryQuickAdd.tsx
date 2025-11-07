@@ -184,7 +184,7 @@ export const InventoryQuickAdd = () => {
     }
 
     const option = SIZE_SCALE_OPTIONS.find((item) => item.id === sizeScale)
-    const allowedSizes = new Set(option?.sizes ?? [])
+    const allowedSizes = new Set<string>(option?.sizes ?? [])
     setVariantSelections((prev) => {
       const next: Record<string, { quantity: number }> = {}
       Object.entries(prev).forEach(([size, value]) => {
