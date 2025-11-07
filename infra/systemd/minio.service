@@ -1,0 +1,16 @@
+[Unit]
+Description=MinIO Object Storage
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=minio
+Group=minio
+EnvironmentFile=/etc/minio/minio.env
+ExecStart=/usr/local/bin/minio server $MINIO_VOLUMES --config-dir /etc/minio $MINIO_OPTS --address 127.0.0.1:9000
+Restart=always
+LimitNOFILE=65536
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
