@@ -95,20 +95,19 @@ export const ReceiveShipment = () => {
       return
     }
 
-    const entries = selectedOrder.items
-      .map((item) => {
-        const entry = draft[item.id]
-        if (!entry || entry.quantity <= 0) {
-          return null
-        }
-        const costValue = entry.costInput.trim().length > 0 ? Math.round(parseFloat(entry.costInput) * 100) : undefined
-        return {
-          itemId: item.id,
-          quantityReceived: entry.quantity,
-          costCents: Number.isFinite(costValue) ? costValue : undefined,
-        }
+    const entries: Array<{ itemId: string; quantityReceived: number; costCents?: number }> = []
+    selectedOrder.items.forEach((item) => {
+      const entry = draft[item.id]
+      if (!entry || entry.quantity <= 0) {
+        return
+      }
+      const costValue = entry.costInput.trim().length > 0 ? Math.round(parseFloat(entry.costInput) * 100) : undefined
+      entries.push({
+        itemId: item.id,
+        quantityReceived: entry.quantity,
+        costCents: Number.isFinite(costValue) ? costValue : undefined,
       })
-      .filter((entry): entry is { itemId: string; quantityReceived: number; costCents?: number } => Boolean(entry))
+    })
 
     if (entries.length === 0) {
       setStatusMessage('Enter at least one quantity greater than zero before submitting.')

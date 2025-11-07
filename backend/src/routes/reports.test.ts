@@ -241,6 +241,52 @@ describe('GET /api/reports/sales/daily', () => {
   });
 });
 
+describe('GET /api/reports/sales/daily/export', () => {
+  it('returns a CSV attachment for the requested range', async () => {
+    prisma.dailySalesRows = [
+      {
+        saleDate: new Date('2025-04-15T00:00:00Z'),
+        grossSalesCents: 250000,
+        discountTotalCents: 15000,
+        taxTotalCents: 2500,
+        netSalesCents: 237500,
+        saleCount: 4,
+      },
+    ];
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/api/reports/sales/daily/export?startDate=2025-04-01T00:00:00.000Z&endDate=2025-04-30T23:59:59.000Z&format=csv',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/csv');
+    expect(response.headers['content-disposition']).toContain('daily-sales');
+    expect(response.body).toContain('Tanggal');
+    expect(response.body).toContain('Penjualan Bersih');
+  });
+
+  it('returns a PDF attachment when requested', async () => {
+    prisma.dailySalesRows = [];
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/api/reports/sales/daily/export?format=pdf',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(response.headers['content-disposition']).toContain('daily-sales');
+    expect(Buffer.from(response.body).length).toBeGreaterThan(0);
+  });
+});
+
 describe('GET /api/reports/sales/top-items', () => {
   it('returns the most popular variants by quantity', async () => {
     prisma.topItemRows = [
@@ -311,6 +357,40 @@ describe('GET /api/reports/sales/top-items', () => {
   });
 });
 
+describe('GET /api/reports/sales/top-items/export', () => {
+  it('exports the top items report as CSV', async () => {
+    prisma.topItemRows = [
+      {
+        variantId: 'variant-1',
+        productId: 'product-1',
+        brandId: 'brand-1',
+        sku: 'SKU-1',
+        productName: 'Sneaker A',
+        brandName: 'Brand A',
+        quantitySold: 12,
+        grossSalesCents: 120000,
+        discountTotalCents: 5000,
+        netSalesCents: 115000,
+        lastSoldAt: new Date('2025-04-30T12:34:00Z'),
+      },
+    ];
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/api/reports/sales/top-items/export?format=csv&limit=5',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/csv');
+    expect(response.headers['content-disposition']).toContain('top-items');
+    expect(response.body).toContain('SKU-1');
+    expect(response.body).toContain('Penjualan Bersih');
+  });
+});
+
 describe('GET /api/reports/sales/top-brands', () => {
   it('returns top brands across the supplied range', async () => {
     prisma.topBrandRows = [
@@ -346,6 +426,34 @@ describe('GET /api/reports/sales/top-brands', () => {
         },
       ],
     });
+  });
+});
+
+describe('GET /api/reports/sales/top-brands/export', () => {
+  it('exports the top brands report as PDF', async () => {
+    prisma.topBrandRows = [
+      {
+        brandId: 'brand-1',
+        brandName: 'Brand A',
+        quantitySold: 20,
+        grossSalesCents: 220000,
+        discountTotalCents: 10000,
+        netSalesCents: 210000,
+      },
+    ];
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/api/reports/sales/top-brands/export?format=pdf',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(response.headers['content-disposition']).toContain('top-brands');
+    expect(Buffer.from(response.body).length).toBeGreaterThan(0);
   });
 });
 
@@ -388,5 +496,35 @@ describe('GET /api/reports/inventory/low-stock', () => {
         },
       ],
     });
+  });
+});
+
+describe('GET /api/reports/inventory/low-stock/export', () => {
+  it('exports the low stock report as CSV by default', async () => {
+    prisma.lowStockRows = [
+      {
+        variantId: 'variant-1',
+        productId: 'product-1',
+        brandId: 'brand-1',
+        sku: 'SKU-1',
+        productName: 'Sneaker A',
+        brandName: 'Brand A',
+        onHand: 2,
+        threshold: 5,
+      },
+    ];
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/api/reports/inventory/low-stock/export',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/csv');
+    expect(response.body).toContain('SKU-1');
+    expect(response.headers['content-disposition']).toContain('low-stock');
   });
 });

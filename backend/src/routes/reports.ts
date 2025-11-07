@@ -3,7 +3,10 @@ import { Role } from '@prisma/client';
 import { requireRoles } from '../middleware/authGuard';
 import {
   ReportDateRangeQuerySchema,
+  ReportExportQuerySchema,
   TopReportQuerySchema,
+  TopReportExportQuerySchema,
+  LowStockExportQuerySchema,
   DailySalesReportResponse,
   TopItemsReportResponse,
   TopBrandsReportResponse,
@@ -17,6 +20,7 @@ import {
   DateRange,
 } from '../services/reporting';
 import { reportingConfig } from '../config/reporting';
+import { buildCsv, buildFileName, createPdfStream, describeRange, formatIdr } from '../utils/reportExport';
 
 const REPORTING_ROLES: Role[] = [Role.OWNER, Role.MANAGER];
 
@@ -89,6 +93,79 @@ export default async function registerReportsRoutes(fastify: FastifyInstance) {
   );
 
   fastify.get(
+    '/api/reports/sales/daily/export',
+    { preHandler: requireRoles(REPORTING_ROLES) },
+    async (request, reply) => {
+      const parsed = ReportExportQuerySchema.parse(request.query);
+      const range = buildDateRange(parsed);
+
+      try {
+        const rows = await fetchDailySalesTotals(fastify.prisma, range);
+        const normalized = rows.map((row) => ({
+          saleDate: row.saleDate,
+          saleCount: row.saleCount,
+          grossSalesCents: row.grossSalesCents,
+          discountTotalCents: row.discountTotalCents,
+          taxTotalCents: row.taxTotalCents,
+          netSalesCents: row.netSalesCents,
+        }));
+
+        const dateFormatter = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' });
+        const columns = [
+          { key: 'saleDate', header: 'Tanggal', accessor: (row: typeof normalized[number]) => dateFormatter.format(row.saleDate) },
+          { key: 'saleCount', header: 'Transaksi', accessor: (row: typeof normalized[number]) => row.saleCount },
+          {
+            key: 'grossSalesCents',
+            header: 'Penjualan Kotor',
+            accessor: (row: typeof normalized[number]) => formatIdr(row.grossSalesCents),
+          },
+          {
+            key: 'discountTotalCents',
+            header: 'Diskon',
+            accessor: (row: typeof normalized[number]) => formatIdr(row.discountTotalCents),
+          },
+          {
+            key: 'taxTotalCents',
+            header: 'Pajak',
+            accessor: (row: typeof normalized[number]) => formatIdr(row.taxTotalCents),
+          },
+          {
+            key: 'netSalesCents',
+            header: 'Penjualan Bersih',
+            accessor: (row: typeof normalized[number]) => formatIdr(row.netSalesCents),
+          },
+        ];
+
+        if (parsed.format === 'csv') {
+          const csv = buildCsv(columns, normalized);
+          const filename = buildFileName('daily-sales', 'csv', range.startDate, range.endDate);
+          return reply
+            .type('text/csv')
+            .header('Content-Disposition', `attachment; filename="${filename}"`)
+            .send(csv);
+        }
+
+        const stream = createPdfStream(
+          'Ringkasan Penjualan Harian',
+          describeRange(range.startDate, range.endDate),
+          columns,
+          normalized,
+        );
+        const filename = buildFileName('daily-sales', 'pdf', range.startDate, range.endDate);
+        reply
+          .type('application/pdf')
+          .header('Content-Disposition', `attachment; filename="${filename}"`);
+        return reply.send(stream);
+      } catch (error) {
+        request.log.warn({ err: error }, 'Failed to export daily sales report');
+        return reply.status(400).send({
+          message: error instanceof Error ? error.message : 'Unable to export daily sales report',
+        });
+      }
+    },
+  );
+
+  fastify.get(
     '/api/reports/sales/top-items',
     { preHandler: requireRoles(REPORTING_ROLES) },
     async (request, reply) => {
@@ -124,6 +201,78 @@ export default async function registerReportsRoutes(fastify: FastifyInstance) {
         request.log.warn({ err: error }, 'Failed to fetch top item report');
         return reply.status(400).send({
           message: error instanceof Error ? error.message : 'Unable to fetch top item report',
+        });
+      }
+    },
+  );
+
+  fastify.get(
+    '/api/reports/sales/top-items/export',
+    { preHandler: requireRoles(REPORTING_ROLES) },
+    async (request, reply) => {
+      const parsed = TopReportExportQuerySchema.parse(request.query);
+      const range = buildDateRange(parsed);
+
+      try {
+        const rows = await fetchTopSellingItems(fastify.prisma, range, parsed.limit);
+        const normalized = rows.map((row) => ({
+          sku: row.sku,
+          productName: row.productName,
+          brandName: row.brandName,
+          quantitySold: row.quantitySold,
+          grossSalesCents: row.grossSalesCents,
+          discountTotalCents: row.discountTotalCents,
+          netSalesCents: row.netSalesCents,
+          lastSoldAt: row.lastSoldAt,
+        }));
+
+        const dateFormatter = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+        const columns = [
+          { key: 'sku', header: 'SKU', accessor: (row: typeof normalized[number]) => row.sku },
+          { key: 'productName', header: 'Produk', accessor: (row: typeof normalized[number]) => row.productName },
+          { key: 'brandName', header: 'Merek', accessor: (row: typeof normalized[number]) => row.brandName },
+          {
+            key: 'quantitySold',
+            header: 'Terjual',
+            accessor: (row: typeof normalized[number]) => row.quantitySold,
+          },
+          {
+            key: 'netSalesCents',
+            header: 'Penjualan Bersih',
+            accessor: (row: typeof normalized[number]) => formatIdr(row.netSalesCents),
+          },
+          {
+            key: 'lastSoldAt',
+            header: 'Terakhir Terjual',
+            accessor: (row: typeof normalized[number]) =>
+              row.lastSoldAt ? dateFormatter.format(row.lastSoldAt) : '—',
+          },
+        ];
+
+        if (parsed.format === 'csv') {
+          const csv = buildCsv(columns, normalized);
+          const filename = buildFileName('top-items', 'csv', range.startDate, range.endDate);
+          return reply
+            .type('text/csv')
+            .header('Content-Disposition', `attachment; filename="${filename}"`)
+            .send(csv);
+        }
+
+        const stream = createPdfStream(
+          'Produk Terlaris',
+          describeRange(range.startDate, range.endDate),
+          columns,
+          normalized,
+        );
+        const filename = buildFileName('top-items', 'pdf', range.startDate, range.endDate);
+        reply
+          .type('application/pdf')
+          .header('Content-Disposition', `attachment; filename="${filename}"`);
+        return reply.send(stream);
+      } catch (error) {
+        request.log.warn({ err: error }, 'Failed to export top item report');
+        return reply.status(400).send({
+          message: error instanceof Error ? error.message : 'Unable to export top item report',
         });
       }
     },
@@ -166,6 +315,66 @@ export default async function registerReportsRoutes(fastify: FastifyInstance) {
   );
 
   fastify.get(
+    '/api/reports/sales/top-brands/export',
+    { preHandler: requireRoles(REPORTING_ROLES) },
+    async (request, reply) => {
+      const parsed = TopReportExportQuerySchema.parse(request.query);
+      const range = buildDateRange(parsed);
+
+      try {
+        const rows = await fetchTopSellingBrands(fastify.prisma, range, parsed.limit);
+        const normalized = rows.map((row) => ({
+          brandName: row.brandName,
+          quantitySold: row.quantitySold,
+          grossSalesCents: row.grossSalesCents,
+          discountTotalCents: row.discountTotalCents,
+          netSalesCents: row.netSalesCents,
+        }));
+
+        const columns = [
+          { key: 'brandName', header: 'Merek', accessor: (row: typeof normalized[number]) => row.brandName },
+          {
+            key: 'quantitySold',
+            header: 'Unit Terjual',
+            accessor: (row: typeof normalized[number]) => row.quantitySold,
+          },
+          {
+            key: 'netSalesCents',
+            header: 'Penjualan Bersih',
+            accessor: (row: typeof normalized[number]) => formatIdr(row.netSalesCents),
+          },
+        ];
+
+        if (parsed.format === 'csv') {
+          const csv = buildCsv(columns, normalized);
+          const filename = buildFileName('top-brands', 'csv', range.startDate, range.endDate);
+          return reply
+            .type('text/csv')
+            .header('Content-Disposition', `attachment; filename="${filename}"`)
+            .send(csv);
+        }
+
+        const stream = createPdfStream(
+          'Merek Terlaris',
+          describeRange(range.startDate, range.endDate),
+          columns,
+          normalized,
+        );
+        const filename = buildFileName('top-brands', 'pdf', range.startDate, range.endDate);
+        reply
+          .type('application/pdf')
+          .header('Content-Disposition', `attachment; filename="${filename}"`);
+        return reply.send(stream);
+      } catch (error) {
+        request.log.warn({ err: error }, 'Failed to export top brand report');
+        return reply.status(400).send({
+          message: error instanceof Error ? error.message : 'Unable to export top brand report',
+        });
+      }
+    },
+  );
+
+  fastify.get(
     '/api/reports/inventory/low-stock',
     { preHandler: requireRoles(REPORTING_ROLES) },
     async (request, reply) => {
@@ -195,6 +404,54 @@ export default async function registerReportsRoutes(fastify: FastifyInstance) {
         request.log.warn({ err: error }, 'Failed to fetch low stock report');
         return reply.status(500).send({
           message: 'Unable to fetch low stock report',
+        });
+      }
+    },
+  );
+
+  fastify.get(
+    '/api/reports/inventory/low-stock/export',
+    { preHandler: requireRoles(REPORTING_ROLES) },
+    async (request, reply) => {
+      const parsed = LowStockExportQuerySchema.parse(request.query);
+
+      try {
+        const rows = await fetchLowStockVariants(fastify.prisma);
+        const normalized = rows.map((row) => ({
+          sku: row.sku,
+          productName: row.productName,
+          brandName: row.brandName,
+          onHand: row.onHand,
+          threshold: row.threshold,
+        }));
+
+        const columns = [
+          { key: 'sku', header: 'SKU', accessor: (row: typeof normalized[number]) => row.sku },
+          { key: 'productName', header: 'Produk', accessor: (row: typeof normalized[number]) => row.productName },
+          { key: 'brandName', header: 'Merek', accessor: (row: typeof normalized[number]) => row.brandName },
+          { key: 'onHand', header: 'Stok Saat Ini', accessor: (row: typeof normalized[number]) => row.onHand },
+          { key: 'threshold', header: 'Ambang Batas', accessor: (row: typeof normalized[number]) => row.threshold },
+        ];
+
+        if (parsed.format === 'csv') {
+          const csv = buildCsv(columns, normalized);
+          const filename = 'low-stock.csv';
+          return reply
+            .type('text/csv')
+            .header('Content-Disposition', `attachment; filename="${filename}"`)
+            .send(csv);
+        }
+
+        const stream = createPdfStream('Persediaan Hampir Habis', null, columns, normalized);
+        const filename = 'low-stock.pdf';
+        reply
+          .type('application/pdf')
+          .header('Content-Disposition', `attachment; filename="${filename}"`);
+        return reply.send(stream);
+      } catch (error) {
+        request.log.warn({ err: error }, 'Failed to export low stock report');
+        return reply.status(500).send({
+          message: 'Unable to export low stock report',
         });
       }
     },

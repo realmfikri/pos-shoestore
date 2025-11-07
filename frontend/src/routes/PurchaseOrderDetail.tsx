@@ -112,20 +112,19 @@ export const PurchaseOrderDetail = () => {
       return
     }
 
-    const entries = order.items
-      .map((item) => {
-        const state = formState[item.id]
-        if (!state || state.quantity <= 0) {
-          return null
-        }
-        const costValue = state.costInput.trim().length > 0 ? Math.round(parseFloat(state.costInput) * 100) : undefined
-        return {
-          itemId: item.id,
-          quantityReceived: state.quantity,
-          costCents: Number.isFinite(costValue) ? costValue : undefined,
-        }
+    const entries: Array<{ itemId: string; quantityReceived: number; costCents?: number }> = []
+    order.items.forEach((item) => {
+      const state = formState[item.id]
+      if (!state || state.quantity <= 0) {
+        return
+      }
+      const costValue = state.costInput.trim().length > 0 ? Math.round(parseFloat(state.costInput) * 100) : undefined
+      entries.push({
+        itemId: item.id,
+        quantityReceived: state.quantity,
+        costCents: Number.isFinite(costValue) ? costValue : undefined,
       })
-      .filter((entry): entry is { itemId: string; quantityReceived: number; costCents?: number } => Boolean(entry))
+    })
 
     if (entries.length === 0) {
       setStatusMessage('Enter at least one received quantity greater than zero.')
