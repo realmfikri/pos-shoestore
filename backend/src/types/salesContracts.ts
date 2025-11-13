@@ -2,17 +2,14 @@ import { z } from 'zod';
 
 export const SaleItemInputSchema = z.object({
   variantId: z.string().uuid('variantId must be a valid UUID'),
-  quantity: z
+  quantity: z.number().int('quantity must be an integer').min(1, 'quantity must be greater than zero'),
+  unitPriceCents: z.coerce
     .number()
-    .int('quantity must be an integer')
-    .min(1, 'quantity must be greater than zero'),
-  unitPriceCents: z
-    .number({ coerce: true })
     .int('unitPriceCents must be an integer')
     .min(0, 'unitPriceCents must be non-negative')
     .optional(),
-  discountCents: z
-    .number({ coerce: true })
+  discountCents: z.coerce
+    .number()
     .int('discountCents must be an integer')
     .min(0, 'discountCents must be non-negative')
     .optional(),
@@ -24,8 +21,8 @@ export const PaymentBreakdownSchema = z
   .array(
     z.object({
       method: z.string().trim().min(1, 'method is required'),
-      amountCents: z
-        .number({ coerce: true })
+      amountCents: z.coerce
+        .number()
         .int('amountCents must be an integer')
         .min(0, 'amountCents must be non-negative'),
     }),
@@ -36,13 +33,13 @@ export type PaymentBreakdown = z.infer<typeof PaymentBreakdownSchema>;
 
 export const CreateSaleBodySchema = z.object({
   items: z.array(SaleItemInputSchema).min(1, 'At least one item is required'),
-  saleDiscountCents: z
-    .number({ coerce: true })
+  saleDiscountCents: z.coerce
+    .number()
     .int('saleDiscountCents must be an integer')
     .min(0, 'saleDiscountCents must be non-negative')
     .default(0),
-  taxCents: z
-    .number({ coerce: true })
+  taxCents: z.coerce
+    .number()
     .int('taxCents must be an integer')
     .min(0, 'taxCents must be non-negative')
     .default(0),

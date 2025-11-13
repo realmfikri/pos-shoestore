@@ -1,10 +1,16 @@
 declare module '@prisma/client' {
+  type JsonPrimitive = string | number | boolean | null;
+  type JsonStructure = JsonPrimitive | JsonStructure[] | { [key: string]: JsonStructure };
+
+  export type JsonValue = JsonStructure;
+  export type InputJsonValue = JsonStructure;
+  export type JsonNull = null;
+
   export const Role: {
     readonly OWNER: 'OWNER';
     readonly MANAGER: 'MANAGER';
     readonly EMPLOYEE: 'EMPLOYEE';
   };
-
   export type Role = (typeof Role)[keyof typeof Role];
 
   export const StockLedgerType: {
@@ -13,7 +19,6 @@ declare module '@prisma/client' {
     readonly RECEIPT: 'RECEIPT';
     readonly SALE: 'SALE';
   };
-
   export type StockLedgerType = (typeof StockLedgerType)[keyof typeof StockLedgerType];
 
   export const PurchaseOrderStatus: {
@@ -22,8 +27,24 @@ declare module '@prisma/client' {
     readonly RECEIVED: 'RECEIVED';
     readonly CANCELLED: 'CANCELLED';
   };
-
   export type PurchaseOrderStatus = (typeof PurchaseOrderStatus)[keyof typeof PurchaseOrderStatus];
+
+  export const InventoryImportStatus: {
+    readonly PENDING: 'PENDING';
+    readonly PROCESSING: 'PROCESSING';
+    readonly COMPLETED: 'COMPLETED';
+    readonly FAILED: 'FAILED';
+  };
+  export type InventoryImportStatus = (typeof InventoryImportStatus)[keyof typeof InventoryImportStatus];
+
+  export const MediaStatus: {
+    readonly PENDING_UPLOAD: 'PENDING_UPLOAD';
+    readonly READY: 'READY';
+    readonly PROCESSING: 'PROCESSING';
+    readonly OPTIMIZED: 'OPTIMIZED';
+    readonly FAILED: 'FAILED';
+  };
+  export type MediaStatus = (typeof MediaStatus)[keyof typeof MediaStatus];
 
   export type User = {
     id: string;
@@ -34,6 +55,14 @@ declare module '@prisma/client' {
     role: Role;
     createdAt: Date;
     updatedAt: Date;
+  };
+
+  export type RefreshToken = {
+    id: string;
+    token: string;
+    userId: string;
+    expiresAt: Date;
+    createdAt: Date;
   };
 
   export type Brand = {
@@ -53,6 +82,9 @@ declare module '@prisma/client' {
     brandId: string;
     createdAt: Date;
     updatedAt: Date;
+    brand?: Brand;
+    media?: Media[];
+    variants?: Variant[];
   };
 
   export type Variant = {
@@ -66,6 +98,8 @@ declare module '@prisma/client' {
     barcode: string | null;
     createdAt: Date;
     updatedAt: Date;
+    product?: Product | null;
+    media?: Media[];
   };
 
   export type StockLedger = {
@@ -77,6 +111,29 @@ declare module '@prisma/client' {
     reason: string | null;
     reference: string | null;
     createdAt: Date;
+    recordedBy?: User | null;
+  };
+
+  export type InventoryImportBatch = {
+    id: string;
+    status: InventoryImportStatus;
+    uploadedById: string;
+    originalFileName: string;
+    totalRows: number;
+    processedRows: number;
+    chunkSize: number;
+    failureReason: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+
+  export type InventoryImportAuditLog = {
+    id: string;
+    batchId: string;
+    level: string;
+    message: string;
+    metadata: JsonValue | null;
+    createdAt: Date;
   };
 
   export type Sale = {
@@ -87,7 +144,7 @@ declare module '@prisma/client' {
     discountTotalCents: number;
     taxTotalCents: number;
     totalCents: number;
-    paymentBreakdown: unknown;
+    paymentBreakdown: JsonValue | null;
     createdAt: Date;
     updatedAt: Date;
   };
@@ -141,6 +198,7 @@ declare module '@prisma/client' {
     receivedById: string | null;
     receivedAt: Date;
     createdAt: Date;
+    items?: GoodsReceiptItem[];
   };
 
   export type GoodsReceiptItem = {
@@ -150,6 +208,26 @@ declare module '@prisma/client' {
     quantityReceived: number;
     costCents: number | null;
     createdAt: Date;
+  };
+
+  export type Media = {
+    id: string;
+    productId: string | null;
+    variantId: string | null;
+    bucket: string;
+    key: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number | null;
+    status: MediaStatus;
+    optimizedKey: string | null;
+    uploadExpiresAt: Date | null;
+    uploadedAt: Date | null;
+    optimizedAt: Date | null;
+    originalDeletedAt: Date | null;
+    failureReason: string | null;
+    createdAt: Date;
+    updatedAt: Date;
   };
 
   export type Setting = {
@@ -223,102 +301,42 @@ declare module '@prisma/client' {
     log?: Array<'query' | 'info' | 'warn' | 'error'>;
   }
 
+  type DelegatePromise<T> = Promise<T>;
+  interface PrismaDelegate<T> {
+    findUnique(args: any): DelegatePromise<T | null>;
+    findFirst?(args: any): DelegatePromise<T | null>;
+    findMany(args?: any): DelegatePromise<T[]>;
+    create(args: any): DelegatePromise<T>;
+    createMany?(args: any): DelegatePromise<{ count: number }>;
+    update(args: any): DelegatePromise<T>;
+    updateMany?(args: any): DelegatePromise<{ count: number }>;
+    delete(args: any): DelegatePromise<T>;
+    deleteMany?(args: any): DelegatePromise<{ count: number }>;
+    upsert?(args: any): DelegatePromise<T>;
+    aggregate?(args: any): DelegatePromise<any>;
+    count?(args: any): DelegatePromise<number>;
+  }
+
   export class PrismaClient {
     constructor(options?: PrismaClientOptions);
 
-    user: {
-      findUnique(args: { where: { email?: string; id?: string } }): Promise<User | null>;
-      upsert(args: {
-        where: { email: string };
-        update: Partial<User>;
-        create: Partial<User> & {
-          email: string;
-          passwordHash: string;
-          firstName: string;
-          lastName: string;
-          role: Role;
-        };
-      }): Promise<User>;
-    };
-
-    supplier: {
-      create(args: { data: Partial<Supplier> & { name: string } }): Promise<Supplier>;
-      findMany(): Promise<Supplier[]>;
-      findUnique(args: { where: { id: string } }): Promise<Supplier | null>;
-      update(args: { where: { id: string }; data: Partial<Supplier> }): Promise<Supplier>;
-      delete(args: { where: { id: string } }): Promise<Supplier>;
-    };
-
-    purchaseOrder: {
-      create(args: { data: Partial<PurchaseOrder> & { supplierId: string; createdById: string } }): Promise<PurchaseOrder>;
-      findMany(): Promise<PurchaseOrder[]>;
-      findUnique(args: { where: { id: string } }): Promise<PurchaseOrder | null>;
-      update(args: { where: { id: string }; data: Partial<PurchaseOrder> }): Promise<PurchaseOrder>;
-    };
-
-    purchaseOrderItem: {
-      create(args: { data: Partial<PurchaseOrderItem> & { purchaseOrderId: string; variantId: string; quantityOrdered: number } }): Promise<PurchaseOrderItem>;
-      createMany(args: { data: Array<Partial<PurchaseOrderItem> & { purchaseOrderId: string; variantId: string; quantityOrdered: number }> }): Promise<{ count: number }>;
-      findMany(args: { where: { purchaseOrderId?: string; id?: string; variantId?: string } }): Promise<PurchaseOrderItem[]>;
-      update(args: { where: { id: string }; data: Partial<PurchaseOrderItem> }): Promise<PurchaseOrderItem>;
-    };
-
-    goodsReceipt: {
-      create(args: { data: Partial<GoodsReceipt> & { purchaseOrderId: string } }): Promise<GoodsReceipt>;
-      findMany(args: { where: { purchaseOrderId?: string } }): Promise<GoodsReceipt[]>;
-    };
-
-    goodsReceiptItem: {
-      create(args: { data: Partial<GoodsReceiptItem> & { goodsReceiptId: string; purchaseOrderItemId: string; quantityReceived: number } }): Promise<GoodsReceiptItem>;
-      findMany(args: { where: { goodsReceiptId?: string; purchaseOrderItemId?: string } }): Promise<GoodsReceiptItem[]>;
-    };
-
-    variant: {
-      findUnique(args: { where: { id?: string; sku?: string } }): Promise<Variant | null>;
-      update(args: { where: { id: string }; data: Partial<Variant> }): Promise<Variant>;
-    };
-
-    stockLedger: {
-      create(args: { data: Partial<StockLedger> & { variantId: string; quantityChange: number; type: StockLedgerType } }): Promise<StockLedger>;
-      findMany(args?: { where?: { variantId?: string } }): Promise<StockLedger[]>;
-    };
-
-    sale: {
-      create(args: {
-        data: Partial<Sale> & {
-          subtotalCents: number;
-          saleDiscountCents: number;
-          discountTotalCents: number;
-          taxTotalCents: number;
-          totalCents: number;
-          paymentBreakdown: unknown;
-          recordedById?: string | null;
-        };
-      }): Promise<Sale>;
-      findUnique(args: { where: { id: string } }): Promise<Sale | null>;
-    };
-
-    saleItem: {
-      create(args: {
-        data: Partial<SaleItem> & {
-          saleId: string;
-          variantId: string;
-          quantity: number;
-          unitPriceCents: number;
-          discountCents: number;
-        };
-      }): Promise<SaleItem>;
-      findMany(args: { where: { saleId?: string } }): Promise<SaleItem[]>;
-    };
-
-    setting: {
-      upsert(args: {
-        where: { key: string };
-        update: Partial<Setting>;
-        create: Setting;
-      }): Promise<Setting>;
-      findUnique(args: { where: { key: string } }): Promise<Setting | null>;
-    };
+    user: PrismaDelegate<User>;
+    refreshToken: PrismaDelegate<RefreshToken>;
+    brand: PrismaDelegate<Brand>;
+    product: PrismaDelegate<Product>;
+    variant: PrismaDelegate<Variant>;
+    stockLedger: PrismaDelegate<StockLedger>;
+    inventoryImportBatch: PrismaDelegate<InventoryImportBatch>;
+    inventoryImportAuditLog: PrismaDelegate<InventoryImportAuditLog>;
+    sale: PrismaDelegate<Sale>;
+    saleItem: PrismaDelegate<SaleItem>;
+    supplier: PrismaDelegate<Supplier>;
+    purchaseOrder: PrismaDelegate<PurchaseOrder>;
+    purchaseOrderItem: PrismaDelegate<PurchaseOrderItem>;
+    goodsReceipt: PrismaDelegate<GoodsReceipt>;
+    goodsReceiptItem: PrismaDelegate<GoodsReceiptItem>;
+    media: PrismaDelegate<Media>;
+    setting: PrismaDelegate<Setting>;
 
     $queryRaw<T = unknown>(
       query: TemplateStringsArray | { raw: string } | Prisma.Sql,
@@ -328,23 +346,52 @@ declare module '@prisma/client' {
       query: TemplateStringsArray | { raw: string } | Prisma.Sql,
       ...values: unknown[]
     ): Promise<unknown>;
-
     $transaction<T>(transaction: (client: PrismaClient) => Promise<T>): Promise<T>;
-
     $disconnect(): Promise<void>;
   }
 
   export namespace Prisma {
-    interface Sql {
-      readonly values: unknown[];
+    type Sql = {
       readonly strings: TemplateStringsArray;
-    }
+      readonly values: unknown[];
+    };
 
     function sql(strings: TemplateStringsArray, ...values: unknown[]): Sql;
-    function join(values: Sql[], separator: Sql): Sql;
+    function join(values: Sql[], separator?: Sql): Sql;
+
+    type StockLedgerWhereInput = {
+      id?: string;
+      variantId?: string;
+      recordedById?: string | null;
+      AND?: StockLedgerWhereInput | StockLedgerWhereInput[];
+      OR?: StockLedgerWhereInput[];
+      NOT?: StockLedgerWhereInput | StockLedgerWhereInput[];
+      [key: string]: unknown;
+    };
+
+    export type JsonValue = JsonStructure;
+    export type InputJsonValue = JsonStructure;
+    export type JsonNull = null;
+
+    export type VariantUpdateInput = Partial<Variant>;
+
+    export type TransactionClient = PrismaClient;
+
+    const QueryMode: {
+      readonly default: 'default';
+      readonly insensitive: 'insensitive';
+    };
+    export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode];
 
     class PrismaClientKnownRequestError extends Error {
       code: string;
     }
   }
+
+  export const Prisma: {
+    sql: typeof Prisma.sql;
+    join: typeof Prisma.join;
+    PrismaClientKnownRequestError: typeof Prisma.PrismaClientKnownRequestError;
+    QueryMode: typeof Prisma.QueryMode;
+  };
 }

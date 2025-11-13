@@ -60,7 +60,7 @@ class InMemoryReportCache implements ReportCache {
 }
 
 class RedisReportCache implements ReportCache {
-  constructor(private readonly client: RedisClientType) {}
+  constructor(private readonly client: RedisClientType<any, any, any>) {}
 
   async get<T>(key: string): Promise<T | null> {
     const payload = await this.client.get(key);

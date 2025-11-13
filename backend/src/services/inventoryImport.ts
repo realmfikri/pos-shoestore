@@ -150,9 +150,11 @@ export const parseInventoryImportCsv = (buffer: Buffer): NormalisedRow[] => {
   }) as Record<string, string>[];
 
   return records.map((record, index) => {
-    const mapped: Partial<InventoryImportRow> & {
+    const mapped: Partial<Omit<InventoryImportRow, 'tags'>> & {
       price?: string;
       quantity?: string;
+      tags?: string;
+      priceCents?: number;
     } = {};
 
     for (const [header, value] of Object.entries(record)) {
@@ -166,14 +168,29 @@ export const parseInventoryImportCsv = (buffer: Buffer): NormalisedRow[] => {
         continue;
       }
 
-      mapped[key] = value;
+      if (key === 'priceCents') {
+        const parsed = Number(value);
+        if (!Number.isNaN(parsed)) {
+          mapped.priceCents = parsed;
+        }
+        continue;
+      }
+
+      if (key === 'tags') {
+        mapped.tags = value;
+        continue;
+      }
+
+      (mapped as Record<string, unknown>)[key] = value;
     }
 
     const rowInput: Record<string, unknown> = {
       brandName: (mapped.brandName ?? '').trim(),
       productName: (mapped.productName ?? '').trim(),
       sku: (mapped.sku ?? '').trim(),
-      tags: parseTags(mapped.tags ?? undefined),
+      tags: parseTags(
+        typeof mapped.tags === 'string' ? mapped.tags : undefined,
+      ),
     };
 
     const size = toNullableString(mapped.size ?? undefined);

@@ -11,6 +11,10 @@
 
 **Recommendation:** Path B now (MVP in ~a few coding days of agent-time). Keep a Path A fallback branch if you want instant baseline.
 
+## Deployment & Operations
+
+For the current Axioo Hype 5 deployment (Fastify API, Nginx-served Vite build, MinIO, cloudflared) see [`docs/deployment.md`](docs/deployment.md). It lists the directory layout, environment files, systemd units, and manual deployment steps.
+
 ---
 
 ## 1) Goals & constraints

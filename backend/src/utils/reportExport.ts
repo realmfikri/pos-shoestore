@@ -1,6 +1,8 @@
 import { PassThrough } from 'node:stream'
 import PDFDocument from 'pdfkit'
 
+type PDFKitDocument = InstanceType<typeof PDFDocument>
+
 type ColumnAccessor<T> = (row: T, index: number) => string | number
 
 export interface ExportColumn<T> {
@@ -35,7 +37,7 @@ export const buildCsv = <T>(columns: Array<ExportColumn<T>>, rows: readonly T[])
   return [header, body].filter(Boolean).join('\n')
 }
 
-const computeColumnWidths = <T>(doc: PDFDocument, columns: Array<ExportColumn<T>>) => {
+const computeColumnWidths = <T>(doc: PDFKitDocument, columns: Array<ExportColumn<T>>) => {
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
   const totalRatio = columns.reduce((total, column) => total + (column.widthRatio ?? 1), 0)
   const widths = columns.map((column) => (contentWidth * (column.widthRatio ?? 1)) / totalRatio)

@@ -63,6 +63,7 @@ import {
   StockLedgerType,
   Variant,
 } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 let buildServer: typeof import('../server').buildServer;
 
@@ -131,7 +132,7 @@ class FakePrismaClient {
         discountTotalCents: data.discountTotalCents,
         taxTotalCents: data.taxTotalCents,
         totalCents: data.totalCents,
-        paymentBreakdown: data.paymentBreakdown,
+        paymentBreakdown: (data.paymentBreakdown ?? null) as Prisma.JsonValue | null,
         createdAt: now,
         updatedAt: now,
       };

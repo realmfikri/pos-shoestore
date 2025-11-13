@@ -86,7 +86,8 @@ const registerMediaRoutes = async (fastify: FastifyInstance): Promise<void> => {
       const expiresInSeconds = env.MEDIA_SIGNED_URL_EXPIRY_SECONDS;
       const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
-      const uploadUrl = await fastify.minio.presignedPutObject(
+      const uploadUrl = await fastify.minio.presignedUrl(
+        'PUT',
         fastify.mediaBucket,
         fileKey,
         expiresInSeconds,

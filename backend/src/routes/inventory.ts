@@ -33,12 +33,15 @@ import {
   failInventoryImportBatch,
   completeInventoryImportBatch,
 } from '../services/inventoryImport';
-import { MediaStatus } from '../types/mediaStatus';
+import { MediaStatus, MediaStatusValue } from '../types/mediaStatus';
 import { env } from '../config/env';
 
 const STOCK_WRITE_ROLES: Role[] = [Role.OWNER, Role.MANAGER, Role.EMPLOYEE];
 
-const MEDIA_VIEWABLE_STATUSES = new Set([MediaStatus.READY, MediaStatus.OPTIMIZED]);
+const MEDIA_VIEWABLE_STATUSES = new Set<MediaStatusValue>([
+  MediaStatus.READY,
+  MediaStatus.OPTIMIZED,
+]);
 
 const BrandListQuerySchema = z
   .object({
@@ -837,7 +840,19 @@ const registerInventoryRoutes = async (fastify: FastifyInstance): Promise<void> 
       }
 
       const product = variant.product;
-      const relatedVariants = product.variants;
+
+      if (!product) {
+        reply.code(404).send({ message: 'Product not found for variant' });
+        return;
+      }
+
+      const brand = product.brand;
+      if (!brand) {
+        reply.code(404).send({ message: 'Brand not found for product' });
+        return;
+      }
+
+      const relatedVariants = product.variants ?? [];
       const onHandMap = await loadOnHandForVariants(
         fastify,
         relatedVariants.map((entry) => entry.id),
@@ -857,7 +872,10 @@ const registerInventoryRoutes = async (fastify: FastifyInstance): Promise<void> 
       }));
 
       const mediaMap = new Map<string, Media>();
-      for (const media of [...product.media, ...variant.media, ...relatedVariants.flatMap((entry) => entry.media)]) {
+      const productMedia = product.media ?? [];
+      const variantMedia = variant.media ?? [];
+      const relatedVariantMedia = relatedVariants.flatMap((entry) => entry.media ?? []);
+      for (const media of [...productMedia, ...variantMedia, ...relatedVariantMedia]) {
         if (!mediaMap.has(media.id)) {
           mediaMap.set(media.id, media);
         }
@@ -877,8 +895,8 @@ const registerInventoryRoutes = async (fastify: FastifyInstance): Promise<void> 
           category: product.category,
           tags: product.tags,
           brand: {
-            id: product.brand.id,
-            name: product.brand.name,
+            id: brand.id,
+            name: brand.name,
           },
         },
         primaryVariantId: variant.id,

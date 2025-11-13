@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["views"]
 }
 
 datasource db {
@@ -52,6 +53,9 @@ model User {
   refreshTokens RefreshToken[]
   stockLedgerEntries StockLedger[] @relation("UserStockLedgerEntries")
   sales         Sale[]         @relation("SalesRecordedByUser")
+  inventoryImports InventoryImportBatch[] @relation("InventoryImportsUploadedBy")
+  purchaseOrders   PurchaseOrder[]        @relation("PurchaseOrdersCreatedBy")
+  goodsReceipts    GoodsReceipt[]         @relation("GoodsReceiptsReceivedBy")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -72,7 +76,7 @@ model Brand {
   products    Product[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  searchVector Unsupported("tsvector")? @ignore
+  searchVector Unsupported("tsvector")?
 }
 
 model Product {
@@ -87,7 +91,7 @@ model Product {
   media       Media[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  searchVector Unsupported("tsvector")? @ignore
+  searchVector Unsupported("tsvector")?
 
   @@index([brandId])
 }
@@ -105,6 +109,7 @@ model Variant {
   stockLedger StockLedger[]
   purchaseOrderItems PurchaseOrderItem[]
   media       Media[]
+  saleItems   SaleItem[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -132,7 +137,7 @@ model InventoryImportBatch {
   id               String                 @id @default(uuid())
   status           InventoryImportStatus  @default(PENDING)
   uploadedById     String
-  uploadedBy       User                   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  uploadedBy       User                   @relation("InventoryImportsUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
   originalFileName String
   totalRows        Int
   processedRows    Int                    @default(0)
@@ -206,7 +211,7 @@ model PurchaseOrder {
   supplierId   String
   supplier     Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   createdById  String
-  createdBy    User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy    User                 @relation("PurchaseOrdersCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   status       PurchaseOrderStatus  @default(DRAFT)
   orderedAt    DateTime?            
   receivedAt   DateTime?
@@ -241,7 +246,7 @@ model GoodsReceipt {
   purchaseOrderId String
   purchaseOrder   PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   receivedById    String?
-  receivedBy      User?             @relation(fields: [receivedById], references: [id], onDelete: SetNull)
+  receivedBy      User?             @relation("GoodsReceiptsReceivedBy", fields: [receivedById], references: [id], onDelete: SetNull)
   receivedAt      DateTime          @default(now())
   createdAt       DateTime          @default(now())
   items           GoodsReceiptItem[]
@@ -311,7 +316,6 @@ view CurrentStock {
   priceCents Int?   @map("price_cents")
 
   @@map("current_stock")
-  @@id([variantId])
 }
 
 view DailySalesTotals {
@@ -323,7 +327,6 @@ view DailySalesTotals {
   saleCount          Int      @map("sale_count")
 
   @@map("daily_sales_totals")
-  @@id([saleDate])
 }
 
 view SaleItemDailyMetrics {
@@ -341,7 +344,6 @@ view SaleItemDailyMetrics {
   lastSoldAt         DateTime @map("last_sold_at")
 
   @@map("sale_item_daily_metrics")
-  @@id([saleDate, variantId])
 }
 
 view BrandDailyMetrics {
@@ -354,7 +356,6 @@ view BrandDailyMetrics {
   netSalesCents      Int      @map("net_sales_cents")
 
   @@map("brand_daily_metrics")
-  @@id([saleDate, brandId])
 }
 
 view LowStockVariants {
@@ -368,5 +369,4 @@ view LowStockVariants {
   threshold   Int
 
   @@map("low_stock_variants")
-  @@id([variantId])
 }
