@@ -159,7 +159,12 @@ describe('POST /api/auth/login', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(typeof body.token).toBe('string');
-    expect(body.user).toMatchObject({ id: 'user-1', email: 'owner@example.com', role: 'OWNER' });
+    expect(body.user).toMatchObject({
+      id: 'user-1',
+      email: 'owner@example.com',
+      name: 'Avery Shaw',
+      roles: ['OWNER'],
+    });
     const refreshCookie = findCookie(response, 'refreshToken');
     expect(refreshCookie?.value).toBeTruthy();
     expect(prisma.refreshTokenStore.size).toBe(1);
@@ -186,7 +191,12 @@ describe('POST /api/auth/refresh', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(typeof body.token).toBe('string');
-    expect(body.user).toMatchObject({ id: 'user-1', email: 'owner@example.com' });
+    expect(body.user).toMatchObject({
+      id: 'user-1',
+      email: 'owner@example.com',
+      name: 'Avery Shaw',
+      roles: ['OWNER'],
+    });
 
     const refreshCookie = findCookie(response, 'refreshToken');
     expect(refreshCookie?.value).toBeTruthy();
