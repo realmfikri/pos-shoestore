@@ -332,23 +332,23 @@ export const InventoryDetail = () => {
                   ))}
                 </select>
               </div>
-              <div className="flex gap-2">
-                <div>
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <div className="flex-1">
                   <label className="block text-xs font-semibold uppercase tracking-wide text-ink-400">From</label>
                   <input
                     type="date"
                     value={filters.from}
                     onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))}
-                    className="mt-1 rounded-xl border border-ink-200 px-3 py-1.5 text-sm text-ink-700 shadow-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                    className="mt-1 h-11 w-full rounded-xl border border-ink-200 px-3 text-sm text-ink-700 shadow-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 md:w-48"
                   />
                 </div>
-                <div>
+                <div className="flex-1">
                   <label className="block text-xs font-semibold uppercase tracking-wide text-ink-400">To</label>
                   <input
                     type="date"
                     value={filters.to}
                     onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))}
-                    className="mt-1 rounded-xl border border-ink-200 px-3 py-1.5 text-sm text-ink-700 shadow-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                    className="mt-1 h-11 w-full rounded-xl border border-ink-200 px-3 text-sm text-ink-700 shadow-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 md:w-48"
                   />
                 </div>
               </div>

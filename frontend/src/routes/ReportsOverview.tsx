@@ -165,7 +165,7 @@ const DateRangeSelector = ({
         type="date"
         value={range.startDate ?? ''}
         onChange={(event) => onChange({ ...range, startDate: event.target.value || undefined })}
-        className="mt-1 rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-700 shadow-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+        className="mt-1 h-11 w-full rounded-xl border border-ink-200 px-3 text-sm text-ink-700 shadow-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 md:max-w-xs"
       />
     </label>
     <label className="flex flex-1 flex-col text-xs font-semibold uppercase tracking-wide text-ink-500">
@@ -174,7 +174,7 @@ const DateRangeSelector = ({
         type="date"
         value={range.endDate ?? ''}
         onChange={(event) => onChange({ ...range, endDate: event.target.value || undefined })}
-        className="mt-1 rounded-xl border border-ink-200 px-3 py-2 text-sm text-ink-700 shadow-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+        className="mt-1 h-11 w-full rounded-xl border border-ink-200 px-3 text-sm text-ink-700 shadow-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20 md:max-w-xs"
       />
     </label>
   </div>
