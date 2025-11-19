@@ -75,7 +75,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           throw new Error('Unable to refresh session')
         }
 
-        const data = await parseJson<{ token: string; user: AuthUser }>(response)
+        const data = await parseJson<{ token?: string; user?: AuthUser }>(response)
+
+        if (!data.token || !data.user) {
+          throw new Error('Malformed refresh response')
+        }
 
         applyAuthPayload({
           status: 'authenticated',
@@ -113,7 +117,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         throw new Error(error.message ?? 'Unable to sign in with the provided credentials')
       }
 
-      const data = await parseJson<{ token: string; user: AuthUser }>(response)
+      const data = await parseJson<{ token?: string; user?: AuthUser }>(response)
+
+      if (!data.token || !data.user) {
+        throw new Error('Malformed login response')
+      }
 
       applyAuthPayload({
         status: 'authenticated',
@@ -126,10 +134,17 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const logout = useCallback(async () => {
     try {
-      await fetch('/api/auth/logout', {
+      const response = await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       })
+
+      if (!response.ok) {
+        const error = await parseJson<{ message?: string }>(response)
+        throw new Error(error.message ?? 'Unable to sign out')
+      }
+    } catch (error) {
+      console.warn('Logout failed', error)
     } finally {
       applyAuthPayload({ status: 'unauthenticated', accessToken: undefined, user: undefined })
     }

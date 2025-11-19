@@ -38,6 +38,19 @@ class FakeMinioClient {
     return `https://example.com/upload/${key}`;
   }
 
+  async presignedUrl(
+    method: string,
+    bucket: string,
+    key: string,
+    expiry: number,
+    metadata?: Record<string, string>,
+  ): Promise<string> {
+    if (method !== 'PUT') {
+      throw new Error('Only PUT is supported in tests');
+    }
+    return this.presignedPutObject(bucket, key, expiry, metadata);
+  }
+
   async statObject(bucket: string, key: string): Promise<{ size: number }> {
     this.statCalls.push({ bucket, key });
     const item = this.storedObjects.get(`${bucket}:${key}`);
