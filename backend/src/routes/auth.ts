@@ -31,13 +31,19 @@ const serializeUser = (user: {
   role: string;
   firstName: string;
   lastName: string;
-}) => ({
-  id: user.id,
-  email: user.email,
-  role: user.role,
-  firstName: user.firstName,
-  lastName: user.lastName,
-});
+}) => {
+  const name = [user.firstName, user.lastName]
+    .map((part) => part?.trim())
+    .filter((part) => part)
+    .join(' ');
+
+  return {
+    id: user.id,
+    email: user.email,
+    name,
+    roles: [user.role],
+  };
+};
 
 const createRefreshToken = async (fastify: FastifyInstance, userId: string) => {
   const token = randomBytes(32).toString('hex');
