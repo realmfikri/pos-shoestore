@@ -684,22 +684,28 @@ export const PosDashboard = () => {
                 <span>Total due</span>
                 <span>{formatCurrency(cartTotals.totalCents)}</span>
               </div>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={handleNewSale}
-                  className="rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:border-ink-400 hover:text-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+              <div className="mt-4">
+                <div
+                  className="sticky bottom-0 left-0 right-0 z-20 -mx-5 rounded-t-3xl border border-ink-100 bg-white/95 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 shadow-[0_-12px_30px_rgba(15,23,42,0.15)] sm:static sm:mx-0 sm:rounded-none sm:border-none sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0 sm:shadow-none"
                 >
-                  Clear cart
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenPayment}
-                  disabled={cartLines.length === 0}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary disabled:cursor-not-allowed disabled:bg-brand-primary/60"
-                >
-                  Take payment (⌥ + P)
-                </button>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={handleNewSale}
+                      className="rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:border-ink-400 hover:text-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+                    >
+                      Clear cart
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleOpenPayment}
+                      disabled={cartLines.length === 0}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary disabled:cursor-not-allowed disabled:bg-brand-primary/60"
+                    >
+                      Take payment (⌥ + P)
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </section>

@@ -114,6 +114,11 @@ const createCapture = (blob: Blob, fileName: string): PhotoCapture => ({
   contentType: blob.type || 'image/jpeg',
 })
 
+const mobileActionBarClass =
+  'sticky bottom-0 left-0 right-0 z-20 -mx-4 rounded-t-3xl border border-ink-100 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-4 shadow-[0_-12px_30px_rgba(15,23,42,0.15)] sm:static sm:mx-0 sm:rounded-none sm:border-none sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-0 sm:shadow-none'
+
+const mobileActionBarInnerClass = 'flex flex-col gap-3 sm:flex-row sm:justify-between'
+
 export const InventoryQuickAdd = () => {
   const navigate = useNavigate()
   const { authorizedFetch } = useAuth()
@@ -788,19 +793,21 @@ export const InventoryQuickAdd = () => {
           <li>Harga yang Anda input akan digunakan ke semua ukuran di langkah berikutnya.</li>
         </ul>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-        <Link
-          to="/inventory"
-          className="rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:border-brand-primary hover:text-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
-        >
-          Batal
-        </Link>
-        <button
-          type="submit"
-          className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
-        >
-          Lanjut pilih ukuran
-        </button>
+      <div className={mobileActionBarClass}>
+        <div className={mobileActionBarInnerClass}>
+          <Link
+            to="/inventory"
+            className="rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:border-brand-primary hover:text-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+          >
+            Batal
+          </Link>
+          <button
+            type="submit"
+            className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+          >
+            Lanjut pilih ukuran
+          </button>
+        </div>
       </div>
     </form>
   )
@@ -913,20 +920,22 @@ export const InventoryQuickAdd = () => {
           Semua varian menggunakan harga {priceInCents ? currencyFormatter.format(priceInCents / 100) : '-'} yang Anda tetapkan di langkah sebelumnya.
         </p>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-        <button
-          type="button"
-          onClick={() => setStep('details')}
-          className="rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:border-brand-primary hover:text-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
-        >
-          Kembali ke detail
-        </button>
-        <button
-          type="submit"
-          className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
-        >
-          Tinjau & simpan
-        </button>
+      <div className={mobileActionBarClass}>
+        <div className={mobileActionBarInnerClass}>
+          <button
+            type="button"
+            onClick={() => setStep('details')}
+            className="rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:border-brand-primary hover:text-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+          >
+            Kembali ke detail
+          </button>
+          <button
+            type="submit"
+            className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+          >
+            Tinjau & simpan
+          </button>
+        </div>
       </div>
     </form>
   )
@@ -1016,21 +1025,23 @@ export const InventoryQuickAdd = () => {
           </div>
         )}
       </section>
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-        <button
-          type="button"
-          onClick={() => setStep('variants')}
-          className="rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:border-brand-primary hover:text-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
-        >
-          Kembali ke ukuran
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
-        >
-          Simpan & unggah
-        </button>
+      <div className={mobileActionBarClass}>
+        <div className={mobileActionBarInnerClass}>
+          <button
+            type="button"
+            onClick={() => setStep('variants')}
+            className="rounded-full border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:border-brand-primary hover:text-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+          >
+            Kembali ke ukuran
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="rounded-full bg-brand-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary"
+          >
+            Simpan & unggah
+          </button>
+        </div>
       </div>
     </div>
   )
