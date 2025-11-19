@@ -315,7 +315,10 @@ export const ReportsOverview = () => {
 
   const topItems = topItemsQuery.data?.results ?? []
   const topBrands = topBrandsQuery.data?.results ?? []
-  const lowStockItems = lowStockQuery.data?.results ?? []
+  const lowStockItems = useMemo(
+    () => lowStockQuery.data?.results ?? [],
+    [lowStockQuery.data],
+  )
 
   const brandOptions = useMemo(() => {
     const set = new Set(lowStockItems.map((item) => item.brandName))

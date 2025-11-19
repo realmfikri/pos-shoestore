@@ -1,28 +1,12 @@
 import { Fragment } from 'react'
 import { NavLink } from 'react-router-dom'
-import {
-  ChartBarIcon,
-  ClipboardDocumentListIcon,
-  CubeIcon,
-  InboxArrowDownIcon,
-  RectangleStackIcon,
-  UserGroupIcon,
-} from '@heroicons/react/24/outline'
 import { classNames } from '../../lib/classNames'
-
-const navigation = [
-  { name: 'Point of Sale', to: '/pos', icon: RectangleStackIcon },
-  { name: 'Inventory', to: '/inventory', icon: CubeIcon },
-  { name: 'Purchase Orders', to: '/purchase-orders', icon: ClipboardDocumentListIcon },
-  { name: 'Receive', to: '/receive', icon: InboxArrowDownIcon },
-  { name: 'Suppliers', to: '/suppliers', icon: UserGroupIcon },
-  { name: 'Reports', to: '/reports', icon: ChartBarIcon },
-]
+import { primaryNavigation } from './navigationData'
 
 export const PrimaryNav = () => {
   return (
     <nav aria-label="Primary" className="flex flex-col gap-1">
-      {navigation.map((item) => (
+      {primaryNavigation.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
