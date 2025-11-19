@@ -10,7 +10,6 @@ import { primaryNavigation } from '../components/navigation/navigationData'
 export const AppLayout = () => {
   const { spacing } = themeTokens
   const mobileNavItems = primaryNavigation.filter((item) => item.showOnMobile)
-  const mobileNavSafeAreaPadding = 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)'
 
   return (
     <div className="grid min-h-screen bg-brand-surface/90 text-ink-800 lg:grid-cols-[18rem_1fr]">
@@ -52,8 +51,7 @@ export const AppLayout = () => {
       </main>
       <nav
         aria-label="Primary mobile"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/70 bg-white/95 px-4 pt-3 shadow-[0_-12px_35px_rgba(69,10,10,0.18)] backdrop-blur lg:hidden"
-        style={{ paddingBottom: mobileNavSafeAreaPadding }}
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-white/70 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] pt-3 shadow-[0_-12px_35px_rgba(69,10,10,0.18)] backdrop-blur lg:hidden"
       >
         <div className="mx-auto grid max-w-lg grid-cols-4 gap-2">
           {mobileNavItems.map((item) => (
