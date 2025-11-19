@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react'
+import type { ComponentProps, ComponentType } from 'react'
 import {
   ChartBarIcon,
   ClipboardDocumentListIcon,
@@ -12,7 +12,7 @@ export type PrimaryNavigationItem = {
   name: string
   shortLabel?: string
   to: string
-  icon: (props: ComponentProps<'svg'>) => JSX.Element
+  icon: ComponentType<ComponentProps<'svg'>>
   showOnMobile?: boolean
 }
 

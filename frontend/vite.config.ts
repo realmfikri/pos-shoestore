@@ -7,7 +7,16 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'vite.svg'],
+      includeAssets: [
+        'favicon.ico',
+        'apple-touch-icon.png',
+        'shoehaven-icon.svg',
+        'shoehaven-icon-maskable.svg',
+        'shoehaven-icon-192.png',
+        'shoehaven-icon-512.png',
+        'shoehaven-icon-maskable-192.png',
+        'shoehaven-icon-maskable-512.png',
+      ],
       manifest: {
         name: 'Shoehaven POS',
         short_name: 'Shoehaven POS',
@@ -19,16 +28,28 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: '/vite.svg',
+            src: '/shoehaven-icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/vite.svg',
+            src: '/shoehaven-icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/shoehaven-icon-maskable-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: '/shoehaven-icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },

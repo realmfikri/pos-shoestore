@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Shoehaven badge</title>
+  <desc id="desc">Gradient square with a stylized sneaker silhouette and warm maroon hues.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8a1c24" />
+      <stop offset="100%" stop-color="#f28c28" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <g fill="none" stroke="none">
+    <path fill="#ffeedd" d="M72 324c46-6 86-4 116-48s82-60 140-58c60 2 126 20 190 60-20 66-65 142-164 142H212c-73 0-128-40-140-96z" opacity=".2"/>
+  </g>
+  <g transform="translate(56 72)">
+    <path fill="#ffeedd" d="M64 286c18 47 78 82 148 82h88c72 0 116-37 144-108l-64-12c-14 31-37 52-76 52h-78c-46 0-88-30-108-66z" />
+    <path fill="#ffffff" d="M84 256c14 38 70 72 126 72h94c56 0 86-32 110-86l-56-10c-14 28-36 46-74 46h-72c-42 0-80-28-96-56z" />
+    <path fill="#ffeedd" d="M74 256c6-42 40-68 76-82s78-20 120-10 82 34 132 78l-70 6c-32-26-66-42-104-42-32 0-70 10-96 28s-46 22-58 22z" />
+    <path fill="#f8955b" d="M130 214c20-12 70-22 106-20 44 2 80 22 112 42l-10 22c-30-20-60-30-96-30-30 0-70 6-102 18z" stroke="#f8955b" stroke-width="16" stroke-linecap="round" />
+    <g fill="#14121e">
+      <circle cx="176" cy="232" r="10" />
+      <circle cx="210" cy="242" r="10" />
+      <circle cx="244" cy="250" r="10" />
+      <circle cx="278" cy="258" r="10" />
+    </g>
+  </g>
+</svg>

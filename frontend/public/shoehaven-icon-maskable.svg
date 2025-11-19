@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="titleMask descMask">
+  <title id="titleMask">Shoehaven maskable badge</title>
+  <desc id="descMask">Circular gradient background with centered sneaker silhouette for maskable icons.</desc>
+  <defs>
+    <radialGradient id="maskable-bg" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#d33c2e" />
+      <stop offset="100%" stop-color="#f28c28" />
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="256" fill="url(#maskable-bg)" />
+  <g transform="translate(64 96)">
+    <path fill="#ffeedd" opacity=".35" d="M12 232c28 76 96 144 204 144h112c94 0 148-58 184-146l-78-14c-20 52-58 88-122 88H208c-68 0-114-44-134-84z" />
+    <path fill="#ffffff" d="M48 224c16 44 74 82 134 82h100c60 0 94-38 118-102l-60-12c-16 34-40 56-82 56h-82c-48 0-86-30-108-64z" />
+    <path fill="#ffeedd" d="M42 222c8-48 44-76 84-92s86-22 132-10 88 38 140 88l-74 6c-34-28-70-46-110-46-34 0-74 10-102 30s-50 24-70 24z" />
+    <path fill="#f8955b" stroke="#f8955b" stroke-width="18" stroke-linecap="round" d="M106 188c26-14 78-26 118-24 46 2 88 24 122 44l-14 28c-32-20-68-32-106-32-32 0-74 8-106 20z" />
+    <g fill="#14121e">
+      <circle cx="170" cy="216" r="12" />
+      <circle cx="208" cy="228" r="12" />
+      <circle cx="246" cy="238" r="12" />
+      <circle cx="284" cy="248" r="12" />
+    </g>
+  </g>
+</svg>

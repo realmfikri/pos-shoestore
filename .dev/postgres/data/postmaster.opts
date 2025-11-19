@@ -1,0 +1,1 @@
+/usr/lib/postgresql/16/bin/postgres "-D" ".dev/postgres/data" "-p" "55432" "-h" "127.0.0.1" "-k" "/tmp/pos_shoestore_pg"
