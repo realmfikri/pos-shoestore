@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -151,6 +151,38 @@ const initializeRange = (): DateRangeState => {
   return { startDate: toValue(start), endDate: toValue(end) }
 }
 
+const useMediaQuery = (query: string) => {
+  const [matches, setMatches] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false
+    }
+    return window.matchMedia(query).matches
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined
+    }
+    const mediaQuery = window.matchMedia(query)
+    const handler = (event: MediaQueryListEvent) => setMatches(event.matches)
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handler)
+    } else {
+      mediaQuery.addListener(handler)
+    }
+    setMatches(mediaQuery.matches)
+    return () => {
+      if (typeof mediaQuery.removeEventListener === 'function') {
+        mediaQuery.removeEventListener('change', handler)
+      } else {
+        mediaQuery.removeListener(handler)
+      }
+    }
+  }, [query])
+
+  return matches
+}
+
 const DateRangeSelector = ({
   range,
   onChange,
@@ -231,6 +263,17 @@ export const ReportsOverview = () => {
   const [onlyCritical, setOnlyCritical] = useState(false)
   const [exportingKey, setExportingKey] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  const isSmallScreen = useMediaQuery('(max-width: 640px)')
+  const axisFontSize = isSmallScreen ? 10 : 12
+  const tooltipStyle = useMemo(
+    () => ({
+      borderRadius: '0.75rem',
+      fontSize: isSmallScreen ? '0.75rem' : '0.875rem',
+      lineHeight: '1.25rem',
+    }),
+    [isSmallScreen],
+  )
+  const legendStyle = useMemo(() => ({ fontSize: axisFontSize }), [axisFontSize])
 
   const updateRange = useCallback((nextRange: DateRangeState) => {
     if (nextRange.startDate && nextRange.endDate && nextRange.startDate > nextRange.endDate) {
@@ -469,19 +512,33 @@ export const ReportsOverview = () => {
         ) : (
           <div className="h-72 w-full">
             <ResponsiveContainer>
-              <LineChart data={chartData} margin={{ top: 10, right: 16, left: 4, bottom: 0 }}>
+              <LineChart
+                data={chartData}
+                margin={isSmallScreen ? { top: 10, right: 8, left: 0, bottom: 24 } : { top: 10, right: 16, left: 4, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="label" stroke="#6B7280" fontSize={12} />
+                <XAxis
+                  dataKey="label"
+                  stroke="#6B7280"
+                  fontSize={axisFontSize}
+                  angle={isSmallScreen ? -35 : 0}
+                  textAnchor={isSmallScreen ? 'end' : 'middle'}
+                  height={isSmallScreen ? 60 : undefined}
+                  tickMargin={isSmallScreen ? 12 : 8}
+                  interval={isSmallScreen ? 0 : undefined}
+                />
                 <YAxis
                   stroke="#6B7280"
-                  fontSize={12}
+                  fontSize={axisFontSize}
+                  width={isSmallScreen ? 64 : undefined}
                   tickFormatter={(value) => formatToIDR(Number(value))}
                 />
                 <Tooltip
                   formatter={(value: number | string) => formatToIDR(Number(value))}
                   labelFormatter={(label) => `Tanggal ${label}`}
+                  contentStyle={tooltipStyle}
                 />
-                <Legend />
+                <Legend wrapperStyle={legendStyle} />
                 <Line
                   type="monotone"
                   dataKey="grossSalesCents"
@@ -551,15 +608,31 @@ export const ReportsOverview = () => {
             <div className="grid gap-4 lg:grid-cols-1">
               <div className="h-72 w-full">
                 <ResponsiveContainer>
-                  <BarChart data={topItems} layout="vertical" margin={{ left: 80 }}>
+                  <BarChart
+                    data={topItems}
+                    layout="vertical"
+                    margin={isSmallScreen ? { left: 60, right: 8, bottom: 8 } : { left: 80, right: 16 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis
                       type="number"
                       tickFormatter={(value) => formatToIDR(Number(value))}
                       stroke="#6B7280"
-                      fontSize={12}
+                      fontSize={axisFontSize}
+                      tickMargin={8}
                     />
-                    <YAxis dataKey="productName" type="category" width={180} stroke="#6B7280" fontSize={12} />
+                    <YAxis
+                      dataKey="productName"
+                      type="category"
+                      width={isSmallScreen ? 140 : 180}
+                      stroke="#6B7280"
+                      fontSize={axisFontSize}
+                      tickFormatter={(value) =>
+                        isSmallScreen && typeof value === 'string' && value.length > 18
+                          ? `${value.slice(0, 15)}…`
+                          : value
+                      }
+                    />
                     <Tooltip
                       formatter={(value: number | string) => formatToIDR(Number(value))}
                       labelFormatter={(_label, payload) =>
@@ -567,8 +640,9 @@ export const ReportsOverview = () => {
                           ? `${payload[0].payload.productName} • ${payload[0].payload.quantitySold} pasang`
                           : ''
                       }
+                      contentStyle={tooltipStyle}
                     />
-                    <Legend />
+                    <Legend wrapperStyle={legendStyle} />
                     <Bar dataKey="netSalesCents" name="Penjualan Bersih" fill="#2563eb" radius={[0, 8, 8, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -625,10 +699,27 @@ export const ReportsOverview = () => {
             <div className="space-y-4">
               <div className="h-72 w-full">
                 <ResponsiveContainer>
-                  <BarChart data={topBrands} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart
+                    data={topBrands}
+                    margin={isSmallScreen ? { top: 10, right: 8, left: 0, bottom: 32 } : { top: 10, right: 20, left: 0, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                    <XAxis dataKey="brandName" stroke="#6B7280" fontSize={12} />
-                    <YAxis stroke="#6B7280" fontSize={12} tickFormatter={(value) => formatToIDR(Number(value))} />
+                    <XAxis
+                      dataKey="brandName"
+                      stroke="#6B7280"
+                      fontSize={axisFontSize}
+                      angle={isSmallScreen ? -35 : 0}
+                      textAnchor={isSmallScreen ? 'end' : 'middle'}
+                      height={isSmallScreen ? 60 : undefined}
+                      tickMargin={isSmallScreen ? 12 : 8}
+                      interval={isSmallScreen ? 0 : undefined}
+                    />
+                    <YAxis
+                      stroke="#6B7280"
+                      fontSize={axisFontSize}
+                      width={isSmallScreen ? 70 : undefined}
+                      tickFormatter={(value) => formatToIDR(Number(value))}
+                    />
                     <Tooltip
                       formatter={(value: number | string) => formatToIDR(Number(value))}
                       labelFormatter={(label, payload) =>
@@ -636,8 +727,9 @@ export const ReportsOverview = () => {
                           ? `${label} • ${payload[0].payload.quantitySold} unit`
                           : label
                       }
+                      contentStyle={tooltipStyle}
                     />
-                    <Legend />
+                    <Legend wrapperStyle={legendStyle} />
                     <Bar dataKey="netSalesCents" fill="#f97316" name="Penjualan Bersih" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
