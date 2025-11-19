@@ -60,8 +60,8 @@ export const PurchaseOrdersList = () => {
       </div>
       {isLoading ? <p className="text-sm text-ink-500">Loading purchase orders…</p> : null}
       {error ? <p className="text-sm text-red-600">{(error as Error).message}</p> : null}
-      <div className="overflow-hidden rounded-2xl border border-ink-100">
-        <table className="min-w-full divide-y divide-ink-100 text-sm">
+      <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-ink-100">
+        <table className="min-w-[680px] divide-y divide-ink-100 text-sm">
           <thead className="bg-brand-surface/80">
             <tr>
               <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-ink-400">Order</th>
