@@ -640,7 +640,7 @@ export const InventoryQuickAdd = () => {
                     <button
                       type="button"
                       onClick={() => removeCapture(capture.id)}
-                      className="absolute right-2 top-2 hidden rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-white group-hover:block"
+                      className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-white opacity-90 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-secondary group-hover:opacity-100"
                     >
                       Hapus
                     </button>
