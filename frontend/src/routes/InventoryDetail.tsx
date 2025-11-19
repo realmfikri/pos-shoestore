@@ -253,8 +253,8 @@ export const InventoryDetail = () => {
           </div>
         )}
 
-        <div className="overflow-hidden rounded-2xl border border-ink-100">
-          <table className="min-w-full divide-y divide-ink-100 text-sm">
+        <div className="overflow-x-auto overflow-y-hidden rounded-2xl border border-ink-100">
+          <table className="min-w-[640px] divide-y divide-ink-100 text-sm">
             <thead className="bg-brand-surface/80">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-ink-400">Variant</th>
