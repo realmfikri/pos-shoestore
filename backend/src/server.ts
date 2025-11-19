@@ -2,6 +2,7 @@ import 'dotenv/config';
 import Fastify, { FastifyInstance } from 'fastify';
 import fastifyJwt from '@fastify/jwt';
 import fastifyMultipart from '@fastify/multipart';
+import fastifyCookie from '@fastify/cookie';
 import { ZodError } from 'zod';
 import { env } from './config/env';
 import prismaPlugin from './plugins/prisma';
@@ -70,6 +71,10 @@ const registerImageOptimization = (
 export const buildServer = (options: BuildServerOptions = {}) => {
   const fastify = Fastify({
     logger: options.logger ?? true,
+  });
+
+  fastify.register(fastifyCookie, {
+    hook: 'onRequest',
   });
 
   fastify.register(fastifyJwt, {
