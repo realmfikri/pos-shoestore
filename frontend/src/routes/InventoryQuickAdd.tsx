@@ -601,8 +601,8 @@ export const InventoryQuickAdd = () => {
         {cameraError ? <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{cameraError}</p> : null}
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-3">
-            <div className="relative overflow-hidden rounded-2xl border border-dashed border-ink-200 bg-ink-50/60">
-              <video ref={videoRef} playsInline muted className="aspect-video w-full bg-black object-cover" />
+            <div className="relative aspect-[3/4] min-h-[45vh] overflow-hidden rounded-2xl border border-dashed border-ink-200 bg-ink-50/60">
+              <video ref={videoRef} playsInline muted className="h-full w-full bg-black object-cover" />
               {!isCameraActive ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 p-4 text-center text-sm text-white">
                   <p>Aktifkan kamera untuk memotret langsung dari perangkat Anda.</p>
@@ -636,7 +636,7 @@ export const InventoryQuickAdd = () => {
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-2">
                 {captures.map((capture) => (
                   <div key={capture.id} className="group relative overflow-hidden rounded-xl border border-ink-200">
-                    <img src={capture.previewUrl} alt="Preview produk" className="aspect-square w-full object-cover" />
+                    <img src={capture.previewUrl} alt="Preview produk" className="aspect-[3/4] w-full object-cover" />
                     <button
                       type="button"
                       onClick={() => removeCapture(capture.id)}
@@ -1006,7 +1006,12 @@ export const InventoryQuickAdd = () => {
         ) : (
           <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
             {captures.map((capture) => (
-              <img key={capture.id} src={capture.previewUrl} alt="Preview" className="aspect-square w-full rounded-xl object-cover" />
+              <img
+                key={capture.id}
+                src={capture.previewUrl}
+                alt="Preview"
+                className="aspect-[3/4] w-full rounded-xl object-cover"
+              />
             ))}
           </div>
         )}
